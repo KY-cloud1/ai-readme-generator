@@ -2,15 +2,14 @@
 """AI README Generator CLI - Entry point."""
 
 import os
-import sys
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import click
 from .commands.analyze import analyze_and_generate, format_analysis
 from .commands.config import get_config, validate_config
 
 
-def set_model_option(ctx, param, value):
+def set_model_option(ctx: Any, param: Any, value: Optional[str]) -> Optional[str]:
     """Custom option handler to set AI_MODEL environment variable."""
     if value:
         os.environ["AI_MODEL"] = value
@@ -81,13 +80,22 @@ def analyze(path, output, format, verbose, use_agents):
 @main.command()
 @click.argument("path", type=click.Path(exists=True))
 @click.option("--output", "-o", type=click.Path(), help="Output file path")
-def diagram(path, output):
+@click.option("--use-agents", is_flag=True, help="Use agent simulation for analysis")
+def diagram(path, output, use_agents):
     """Generate ASCII architecture diagram for a codebase.
 
     PATH: Path to the project directory to analyze
     """
-    analysis = analyze_codebase(path)
-    diagram = generate_diagram(analysis['codebase'], analysis)
+    try:
+        analysis = analyze_codebase(path, use_agents=use_agents)
+        diagram = generate_diagram(analysis['codebase'], analysis.get('agents', {}).get('Architect') or analysis)
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        raise click.exceptions.Exit(1)
+
+    if not diagram:
+        click.echo("Error: Failed to generate diagram", err=True)
+        raise click.exceptions.Exit(1)
 
     if output:
         with open(output, 'w') as f:
@@ -100,13 +108,22 @@ def diagram(path, output):
 @main.command()
 @click.argument("path", type=click.Path(exists=True))
 @click.option("--output", "-o", type=click.Path(), help="Output file path")
-def api(path, output):
+@click.option("--use-agents", is_flag=True, help="Use agent simulation for analysis")
+def api(path, output, use_agents):
     """Extract API documentation from a codebase.
 
     PATH: Path to the project directory to analyze
     """
-    analysis = analyze_codebase(path)
-    api_docs = generate_api_docs(analysis.get('endpoints'))
+    try:
+        analysis = analyze_codebase(path, use_agents=use_agents)
+        api_docs = generate_api_docs(analysis.get('endpoints', []))
+    except Exception as e:
+        click.echo(f"Error: {e}", err=True)
+        raise click.exceptions.Exit(1)
+
+    if not api_docs:
+        click.echo("Error: Failed to generate API documentation", err=True)
+        raise click.exceptions.Exit(1)
 
     if output:
         with open(output, 'w') as f:
@@ -134,19 +151,19 @@ def setup(path, output):
         click.echo(setup)
 
 
-def analyze_codebase(path: str) -> Dict[str, Any]:
+def analyze_codebase(path: str, use_agents: bool = False) -> Dict[str, Any]:
     """Helper function for standalone commands."""
     from .commands.analyze import analyze_codebase as _analyze
-    return _analyze(path)
+    return _analyze(path, use_agents)
 
 
-def generate_diagram(codebase_info: Dict[str, Any], analysis: Dict[str, Any]) -> str:
+def generate_diagram(codebase_info: Dict[str, Any], analysis: Any) -> str:
     """Helper function for standalone commands."""
     from .commands.generate import generate_diagram as _generate
     return _generate(codebase_info, analysis)
 
 
-def generate_api_docs(endpoints: list) -> str:
+def generate_api_docs(endpoints: List[Dict[str, Any]]) -> str:
     """Helper function for standalone commands."""
     from .commands.generate import generate_api_docs as _generate
     return _generate(endpoints)
