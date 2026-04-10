@@ -1,8 +1,9 @@
 """Codebase traversal and analysis."""
 
 import os
+import re
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Any
 
 
 SUPPORTED_EXTENSIONS = {
@@ -25,7 +26,7 @@ SUPPORTED_EXTENSIONS = {
 }
 
 
-def scan_codebase(path: str) -> Dict[str, any]:
+def scan_codebase(path: str) -> Dict[str, Any]:
     """
     Scan a codebase and return structured information.
 
@@ -82,15 +83,14 @@ def scan_codebase(path: str) -> Dict[str, any]:
                 codebase_info["languages"][language]["files"].append(relative_path)
 
                 # Track root-level files
-                if relative_path == file:
-                    codebase_info["root_files"].append(file)
+                if os.path.basename(relative_path) == os.path.basename(file_path):
+                    codebase_info["root_files"].append(relative_path)
 
     return codebase_info
 
 
-def parse_python_file(file_path: str) -> Dict[str, any]:
-    """
-    Parse a Python file for structure information.
+def parse_python_file(file_path: str) -> Dict[str, Any]:
+    """Parse a Python file for structure information.
 
     Args:
         file_path: Path to the Python file
@@ -156,9 +156,8 @@ def parse_python_file(file_path: str) -> Dict[str, any]:
     }
 
 
-def parse_javascript_file(file_path: str) -> Dict[str, any]:
-    """
-    Parse a JavaScript/TypeScript file for structure information.
+def parse_javascript_file(file_path: str) -> Dict[str, Any]:
+    """Parse a JavaScript/TypeScript file for structure information.
 
     Args:
         file_path: Path to the JavaScript/TypeScript file

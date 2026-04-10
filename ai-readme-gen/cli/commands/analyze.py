@@ -9,7 +9,6 @@ from ..analysis.extractor import extract_project_metadata, extract_api_endpoints
 from ..analysis.agent import (
     create_agent_pipeline,
     run_agent_pipeline,
-    AgentResult,
     Agent,
     CodebaseAnalyst,
     Architect,
@@ -47,9 +46,6 @@ def analyze_codebase(path: str, use_agents: bool = False) -> Dict[str, Any]:
     # Extract API endpoints
     endpoints = extract_api_endpoints(path)
 
-    # Extract setup instructions
-    setup = extract_setup_instructions(path)
-
     # Run agent simulation if enabled
     agent_results = {}
     if use_agents:
@@ -57,7 +53,6 @@ def analyze_codebase(path: str, use_agents: bool = False) -> Dict[str, Any]:
             "codebase": codebase_info,
             "metadata": metadata,
             "endpoints": endpoints,
-            "setup": setup,
         }
         agent_results = run_agent_pipeline(context)
 
@@ -65,7 +60,6 @@ def analyze_codebase(path: str, use_agents: bool = False) -> Dict[str, Any]:
         "codebase": codebase_info,
         "metadata": metadata,
         "endpoints": endpoints,
-        "setup": setup,
         "agents": agent_results,
     }
 
@@ -134,20 +128,39 @@ def format_analysis(analysis: Dict[str, Any]) -> str:
         ])
         for agent_name, result in analysis['agents'].items():
             lines.append(f"--- {agent_name} ---")
+
+            # Handle both AgentResult objects and dict results
             if hasattr(result, 'metadata'):
                 meta = result.metadata
-                if meta.get('patterns'):
-                    lines.append(f"Patterns: {', '.join(meta['patterns'])}")
-                if meta.get('tech_stack'):
-                    lines.append(f"Tech Stack: {', '.join(meta['tech_stack'])}")
-                if meta.get('file_distribution'):
-                    lines.append("File Distribution:")
-                    for lang, files in meta['file_distribution'].items():
-                        lines.append(f"  - {lang}: {len(files)} files")
-                if meta.get('entry_points'):
-                    lines.append(f"Entry Points: {', '.join(meta['entry_points'])}")
-                if meta.get('dependencies'):
-                    lines.append(f"Dependencies: {', '.join(meta['dependencies'])}")
+            elif isinstance(result, dict):
+                meta = result
+            else:
+                lines.append("No metadata available")
+                lines.append("")
+                continue
+
+            # Only display if there's meaningful data
+            displayed = False
+            if meta.get('patterns'):
+                lines.append(f"Patterns: {', '.join(meta['patterns'])}")
+                displayed = True
+            if meta.get('tech_stack'):
+                lines.append(f"Tech Stack: {', '.join(meta['tech_stack'])}")
+                displayed = True
+            if meta.get('file_distribution'):
+                lines.append("File Distribution:")
+                for lang, files in meta['file_distribution'].items():
+                    lines.append(f"  - {lang}: {len(files)} files")
+                displayed = True
+            if meta.get('entry_points'):
+                lines.append(f"Entry Points: {', '.join(meta['entry_points'])}")
+                displayed = True
+            if meta.get('dependencies'):
+                lines.append(f"Dependencies: {', '.join(meta['dependencies'])}")
+                displayed = True
+
+            if not displayed:
+                lines.append("No detailed output")
             lines.append("")
 
     lines.extend([

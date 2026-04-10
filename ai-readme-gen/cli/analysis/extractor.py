@@ -1,6 +1,9 @@
 """Pattern extraction utilities."""
 
+import json
+import os
 import re
+import tomllib
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
@@ -45,38 +48,50 @@ def extract_project_metadata(path: str) -> Dict[str, Any]:
 
 
 def extract_from_pyproject(path: str) -> Dict[str, Any]:
-    """Extract metadata from pyproject.toml."""
-    import tomllib
+    """Extract metadata from pyproject.toml.
 
+    Args:
+        path: Path to pyproject.toml file
+
+    Returns:
+        Dictionary with extracted metadata fields
+    """
     with open(path, 'rb') as f:
         data = tomllib.load(f)
 
-    result = {
+    result: Dict[str, Any] = {
         "name": data.get("project", {}).get("name"),
         "version": data.get("project", {}).get("version"),
         "description": data.get("project", {}).get("description"),
         "keywords": data.get("project", {}).get("keywords", []),
         "license": data.get("project", {}).get("license", {}).get("text"),
-        "repository": data.get("project", {}).get("urls", [None])[0] if data.get("project", {}).get("urls") else None,
+        "repository": data.get("project", {}).get("urls", [])[0] if data.get("project", {}).get("urls") else None,
     }
 
     # Extract author from tool.poetry or project
-    author = None
+    author: Optional[str] = None
     if "tool" in data and "poetry" in data["tool"]:
-        author = data["tool"]["poetry"].get("authors", [None])[0]
-    result["author"] = author
+        authors = data["tool"]["poetry"].get("authors")
+        if authors:
+            author = authors[0]
+    result["author"] = author or None
 
     return result
 
 
 def extract_from_package_json(path: str) -> Dict[str, Any]:
-    """Extract metadata from package.json."""
-    import json
+    """Extract metadata from package.json.
 
+    Args:
+        path: Path to package.json file
+
+    Returns:
+        Dictionary with extracted metadata fields
+    """
     with open(path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    return {
+    result: Dict[str, Any] = {
         "name": data.get("name"),
         "version": data.get("version"),
         "description": data.get("description"),
@@ -86,34 +101,36 @@ def extract_from_package_json(path: str) -> Dict[str, Any]:
         "repository": data.get("repository", {}).get("url") if isinstance(data.get("repository"), dict) else data.get("repository"),
     }
 
+    return result
+
 
 def extract_from_readme(path: str) -> Dict[str, Any]:
-    """Extract metadata from README.md."""
-    with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+    """Extract metadata from README.md.
+
+    Args:
+        path: Path to README.md file
+
+    Returns:
+        Dictionary with extracted name and/or description
+    """
+    with open(path, 'r', encoding='utf-8') as f:
         content = f.read()
 
     # Extract project name from title or first heading
-    title_match = re.search(r'#\s+([A-Za-z0-9_\s\-]+)', content)
+    title_match = re.search(r'#\s+(.+)', content)
     if title_match:
-        return {
-            "name": title_match.group(1).strip(),
-            "description": None,
-        }
+        return {"name": title_match.group(1).strip(), "description": None}
 
     # Extract description from text
     desc_match = re.search(r'(?:Description|About)\s*\n\s*(.+)', content)
     if desc_match:
-        return {
-            "name": None,
-            "description": desc_match.group(1).strip(),
-        }
+        return {"name": None, "description": desc_match.group(1).strip()}
 
     return {}
 
 
 def extract_api_endpoints(path: str) -> List[Dict[str, Any]]:
-    """
-    Extract API endpoint definitions from code.
+    """Extract API endpoint definitions from code.
 
     Args:
         path: Path to the project root
@@ -121,62 +138,82 @@ def extract_api_endpoints(path: str) -> List[Dict[str, Any]]:
     Returns:
         List of API endpoint definitions
     """
-    endpoints = []
+    endpoints: List[Dict[str, Any]] = []
 
-    # Look for FastAPI routes
+    # Look for FastAPI routes (with various parameter combinations)
     fastapi_patterns = [
-        (r'@app\.get\s*\(\s*[\'"](/[\w/_]+[\'"])\s*\)', 'fastapi-get'),
-        (r'@app\.post\s*\(\s*[\'"](/[\w/_]+[\'"])\s*\)', 'fastapi-post'),
-        (r'@app\.put\s*\(\s*[\'"](/[\w/_]+[\'"])\s*\)', 'fastapi-put'),
-        (r'@app\.delete\s*\(\s*[\'"](/[\w/_]+[\'"])\s*\)', 'fastapi-delete'),
+        # Basic patterns
+        (r'@app\.get\s*\(\s*[\'"](/[\w/_-]+[\'"])\s*\)', 'fastapi-get'),
+        (r'@app\.post\s*\(\s*[\'"](/[\w/_-]+[\'"])\s*\)', 'fastapi-post'),
+        (r'@app\.put\s*\(\s*[\'"](/[\w/_-]+[\'"])\s*\)', 'fastapi-put'),
+        (r'@app\.delete\s*\(\s*[\'"](/[\w/_-]+[\'"])\s*\)', 'fastapi-delete'),
+        # With additional parameters (tags, summary, etc.)
+        (r'@app\.(get|post|put|delete)\s*\(\s*(?:[\w,=\s]+\s*)?[\'"](/[\w/_-]+[\'"])\s*\)', 'fastapi-generic'),
     ]
 
-    # Look for Express routes
+    # Look for Express/Fastify routes (with various patterns)
     express_patterns = [
-        (r'router\.(get|post|put|delete)\s*\(\s*[\'"](/[\w/_]+[\'"])\s*\)', 'express'),
-        (r'app\.(get|post|put|delete)\s*\(\s*[\'"](/[\w/_]+[\'"])\s*\)', 'express'),
+        # Basic router patterns
+        (r'router\.(get|post|put|delete|patch)\s*\(\s*[\'"](/[\w/_-]+[\'"])\s*\)', 'express'),
+        (r'fastify\.(get|post|put|delete|patch)\s*\(\s*[\'"](/[\w/_-]+[\'"])\s*\)', 'fastify'),
+        # With path parameters
+        (r'router\.(get|post|put|delete|patch)\s*\(\s*[\'"](/[\w/_-]+/{:[\w]+}[\'"])\s*\)', 'express'),
+        (r'fastify\.(get|post|put|delete|patch)\s*\(\s*[\'"](/[\w/_-]+/{:[\w]+}[\'"])\s*\)', 'fastify'),
+        # Additional patterns for different frameworks
+        (r'app\.(get|post|put|delete|patch)\s*\(\s*[\'"](/[\w/_-]+[\'"])\s*\)', 'express-app'),
+        # With additional parameters
+        (r'(?:router|app|fastify)\.(get|post|put|delete|patch)\s*\(\s*(?:[\w,=\s]+\s*)?[\'"](/[\w/_-]+[\'"])\s*\)', 'express-generic'),
     ]
 
-    for root, dirs, files in __import__('os').walk(path):
+    for root, dirs, files in os.walk(path):
         for file in files:
             if file.endswith(('.py', '.js', '.ts')):
                 file_path = Path(root) / file
-                content = file_path.read_text(encoding='utf-8', errors='ignore')
+                try:
+                    content = file_path.read_text(encoding='utf-8')
+                except (IOError, OSError, UnicodeDecodeError):
+                    continue
 
                 # Check for FastAPI
                 for pattern, method in fastapi_patterns:
-                    matches = re.finditer(pattern, content)
-                    for match in matches:
-                        path_part = match.group(1)
-                        endpoints.append({
-                            "method": "GET" if method == 'fastapi-get' else
-                                    "POST" if method == 'fastapi-post' else
-                                    "PUT" if method == 'fastapi-put' else
-                                    "DELETE",
-                            "path": path_part,
-                            "source": str(file_path),
-                            "type": "fastapi",
-                        })
+                    try:
+                        matches = re.finditer(pattern, content)
+                        for match in matches:
+                            path_part = match.group(1)
+                            if method == 'fastapi-generic':
+                                http_method = match.group(2).upper()
+                            else:
+                                http_method = match.group(1).upper()
+                            endpoints.append({
+                                "method": http_method,
+                                "path": path_part,
+                                "source": str(file_path),
+                                "type": "fastapi",
+                            })
+                    except re.error:
+                        continue
 
-                # Check for Express
+                # Check for Express/Fastify
                 for pattern, method in express_patterns:
-                    matches = re.finditer(pattern, content)
-                    for match in matches:
-                        path_part = match.group(1)
-                        http_method = match.group(2)
-                        endpoints.append({
-                            "method": http_method.upper(),
-                            "path": path_part,
-                            "source": str(file_path),
-                            "type": "express",
-                        })
+                    try:
+                        matches = re.finditer(pattern, content)
+                        for match in matches:
+                            path_part = match.group(1)
+                            http_method = match.group(1).upper()
+                            endpoints.append({
+                                "method": http_method,
+                                "path": path_part,
+                                "source": str(file_path),
+                                "type": method,
+                            })
+                    except re.error:
+                        continue
 
     return endpoints
 
 
 def extract_setup_instructions(path: str) -> Dict[str, Any]:
-    """
-    Extract setup/installation instructions from project.
+    """Extract setup/installation instructions from project.
 
     Args:
         path: Path to the project root
@@ -184,7 +221,7 @@ def extract_setup_instructions(path: str) -> Dict[str, Any]:
     Returns:
         Dictionary containing setup instructions
     """
-    instructions = {
+    instructions: Dict[str, List[str]] = {
         "installation": [],
         "environment": [],
         "configuration": [],
@@ -203,10 +240,9 @@ def extract_setup_instructions(path: str) -> Dict[str, Any]:
     # Check for package.json
     pkg_file = Path(path) / "package.json"
     if pkg_file.exists():
-        import json
-        with open(pkg_file, 'r') as f:
+        with open(pkg_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            instructions["dependencies"].append(f"npm install")
+            instructions["dependencies"].append("npm install")
             if "scripts" in data:
                 instructions["configuration"].append("npm run <script>")
 

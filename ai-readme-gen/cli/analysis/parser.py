@@ -8,8 +8,7 @@ from .codebase import parse_python_file, parse_javascript_file
 
 
 def parse_file(file_path: str) -> Dict[str, Any]:
-    """
-    Parse a file based on its language.
+    """Parse a file based on its language.
 
     Args:
         file_path: Path to the file
@@ -33,8 +32,7 @@ def parse_file(file_path: str) -> Dict[str, Any]:
 
 
 def extract_dependencies(file_path: str) -> List[str]:
-    """
-    Extract dependencies from a file.
+    """Extract dependencies from a file.
 
     Args:
         file_path: Path to the file
@@ -78,8 +76,7 @@ def extract_dependencies(file_path: str) -> List[str]:
 
 
 def extract_project_dependencies(path: str) -> Dict[str, List[str]]:
-    """
-    Extract project-level dependencies.
+    """Extract project-level dependencies.
 
     Args:
         path: Path to the project root
