@@ -1,8 +1,11 @@
 """Simulated agent roles for documentation generation."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
+
+
+ENTRY_POINT_KEYWORDS = ["main", "app", "entry", "cli"]
 
 
 @dataclass
@@ -20,14 +23,14 @@ class Agent(ABC):
     @abstractmethod
     def run(self, context: Dict[str, Any]) -> AgentResult:
         """Execute the agent's task."""
-        pass
+        ...
 
 
 class CodebaseAnalyst(Agent):
     """Analyzes codebase structure and dependencies."""
 
-    def __init__(self):
-        self.analyzed_paths: list = []
+    def __init__(self) -> None:
+        pass
 
     def run(self, context: Dict[str, Any]) -> AgentResult:
         """
@@ -67,18 +70,26 @@ class CodebaseAnalyst(Agent):
 
         return AgentResult(success=True, metadata=result)
 
-    def _find_entry_points(self, files: list) -> list:
+    def _propagate_to_context(self, context: Dict[str, Any], result: AgentResult) -> None:
+        """Propagate analysis results to context for dependent agents."""
+        metadata = result.metadata or {}
+        context["metadata"] = metadata
+        context["file_distribution"] = metadata.get("file_distribution", {})
+        context["entry_points"] = metadata.get("entry_points", [])
+        context["dependencies"] = metadata.get("dependencies", [])
+
+    def _find_entry_points(self, files: List[Dict[str, Any]]) -> List[str]:
         """Find potential entry points in files."""
-        entry_points = []
+        entry_points: List[str] = []
         for file in files:
             path = file.get("path", "")
-            if any(entry in path.lower() for entry in ["main", "app", "entry", "cli"]):
+            if any(entry in path.lower() for entry in ENTRY_POINT_KEYWORDS):
                 entry_points.append(path)
         return entry_points[:5]  # Limit to top 5
 
-    def _find_dependencies(self, files: list) -> list:
+    def _find_dependencies(self, files: List[Dict[str, Any]]) -> List[str]:
         """Find dependencies from imports."""
-        dependencies = set()
+        dependencies: set = set()
         for file in files:
             if file.get("language") == "python":
                 # Check requirements.txt
@@ -94,8 +105,8 @@ class CodebaseAnalyst(Agent):
 class Architect(Agent):
     """Infers system design patterns."""
 
-    def __init__(self):
-        self.inferred_patterns: list = []
+    def __init__(self) -> None:
+        pass
 
     def run(self, context: Dict[str, Any]) -> AgentResult:
         """
@@ -111,7 +122,7 @@ class Architect(Agent):
         file_dist = context.get("file_distribution", {})
 
         # Detect patterns based on file structure
-        patterns = []
+        patterns: List[str] = []
 
         if "python" in file_dist:
             patterns.append("Python application")
@@ -137,12 +148,18 @@ class Architect(Agent):
             metadata={"patterns": patterns}
         )
 
+    def _propagate_to_context(self, context: Dict[str, Any], result: AgentResult) -> None:
+        """Propagate architectural patterns to context for dependent agents."""
+        metadata = result.metadata or {}
+        patterns = metadata.get("patterns", [])
+        context["patterns"] = patterns
+
 
 class TechnicalWriter(Agent):
     """Writes documentation and README content."""
 
-    def __init__(self):
-        self.generated_sections: list = []
+    def __init__(self) -> None:
+        pass
 
     def run(self, context: Dict[str, Any]) -> AgentResult:
         """
@@ -159,8 +176,12 @@ class TechnicalWriter(Agent):
         file_dist = context.get("file_distribution", {})
 
         # Generate project description
-        description = metadata.get("description", "A software project") or \
-                     (metadata.get("name", "Project") or "Project") + " is a software project."
+        description = metadata.get("description")
+        if description is None:
+            if metadata.get("name"):
+                description = metadata["name"] + " is a software project."
+            else:
+                description = "A software project"
 
         # Generate features list
         features = self._extract_features(analysis, file_dist)
@@ -180,9 +201,17 @@ class TechnicalWriter(Agent):
 
         return AgentResult(success=True, metadata=result)
 
-    def _extract_features(self, analysis: Dict, file_dist: Dict) -> list:
+    def _propagate_to_context(self, context: Dict[str, Any], result: AgentResult) -> None:
+        """Propagate documentation content to context for dependent agents."""
+        metadata = result.metadata or {}
+        context["description"] = metadata.get("description", "")
+        context["features"] = metadata.get("features", [])
+        context["tech_stack"] = metadata.get("tech_stack", [])
+        context["installation"] = metadata.get("installation", "")
+
+    def _extract_features(self, analysis: Dict[str, Any], file_dist: Dict[str, Any]) -> List[str]:
         """Extract features from analysis."""
-        features = []
+        features: List[str] = []
 
         if analysis.get("entry_points"):
             features.append("Multiple entry points for different use cases")
@@ -198,9 +227,9 @@ class TechnicalWriter(Agent):
 
         return features[:5]
 
-    def _extract_tech_stack(self, file_dist: Dict) -> list:
+    def _extract_tech_stack(self, file_dist: Dict[str, Any]) -> List[str]:
         """Extract technology stack from file distribution."""
-        stack = []
+        stack: List[str] = []
 
         for lang in file_dist.keys():
             if lang == "python":
@@ -212,9 +241,9 @@ class TechnicalWriter(Agent):
 
         return stack
 
-    def _generate_installation(self, metadata: Dict, file_dist: Dict) -> str:
+    def _generate_installation(self, metadata: Dict[str, Any], file_dist: Dict[str, Any]) -> str:
         """Generate installation instructions."""
-        lines = []
+        lines: List[str] = []
 
         if "python" in file_dist:
             lines.append("1. Install Python 3.9+")
@@ -230,8 +259,8 @@ class TechnicalWriter(Agent):
 class APIExtractor(Agent):
     """Extracts API endpoint documentation."""
 
-    def __init__(self):
-        self.extracted_endpoints: list = []
+    def __init__(self) -> None:
+        pass
 
     def run(self, context: Dict[str, Any]) -> AgentResult:
         """
@@ -243,7 +272,7 @@ class APIExtractor(Agent):
         Returns:
             AgentResult with extracted API info
         """
-        endpoints = context.get("endpoints", [])
+        endpoints = context.get("endpoints", [])  # type: List[Dict[str, Any]]
 
         if not endpoints:
             return AgentResult(
@@ -269,12 +298,18 @@ class APIExtractor(Agent):
 
         return AgentResult(success=True, metadata=result)
 
+    def _propagate_to_context(self, context: Dict[str, Any], result: AgentResult) -> None:
+        """Propagate API endpoint information to context for dependent agents."""
+        metadata = result.metadata or {}
+        context["endpoints"] = metadata.get("endpoints", [])
+        context["grouped_endpoints"] = metadata.get("grouped", {})
+
 
 class Reviewer(Agent):
     """Reviews and validates generated content."""
 
-    def __init__(self):
-        self.review_notes: list = []
+    def __init__(self) -> None:
+        pass
 
     def run(self, context: Dict[str, Any]) -> AgentResult:
         """
@@ -286,7 +321,7 @@ class Reviewer(Agent):
         Returns:
             AgentResult with review feedback
         """
-        all_results = context.get("results", {})
+        all_results = context.get("results", {})  # type: Dict[str, Any]
 
         # Check for completeness
         completeness = self._check_completeness(all_results)
@@ -315,9 +350,9 @@ class Reviewer(Agent):
             }
         )
 
-    def _check_completeness(self, results: Dict) -> Dict:
+    def _check_completeness(self, results: Dict[str, Any]) -> Dict[str, Any]:
         """Check documentation completeness."""
-        issues = []
+        issues: List[str] = []
 
         if not results.get("description"):
             issues.append("Missing project description")
@@ -330,15 +365,23 @@ class Reviewer(Agent):
 
         return {"issues": issues}
 
-    def _check_accuracy(self, results: Dict) -> Dict:
+    def _check_accuracy(self, results: Dict[str, Any]) -> Dict[str, Any]:
         """Check content accuracy."""
-        issues = []
+        issues: List[str] = []
 
         # Would validate against actual codebase here
         return {"issues": issues}
 
+    def _propagate_to_context(self, context: Dict[str, Any], result: AgentResult) -> None:
+        """Propagate review results to context for dependent agents."""
+        metadata = result.metadata or {}
+        context["rating"] = metadata.get("rating", "Pass")
+        context["review_notes"] = metadata.get("notes", [])
+        context["completeness"] = metadata.get("completeness", {})
+        context["accuracy"] = metadata.get("accuracy", {})
 
-def create_agent_pipeline() -> list:
+
+def create_agent_pipeline() -> List[Agent]:
     """Create the full agent pipeline."""
     return [
         CodebaseAnalyst(),
@@ -360,14 +403,32 @@ def run_agent_pipeline(context: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary with all agent results
     """
     agents = create_agent_pipeline()
-    results = {}
+    results: Dict[str, Any] = {}
 
     for agent in agents:
-        result = agent.run(context)
+        try:
+            result = agent.run(context)
+        except Exception as e:
+            error_result = AgentResult(
+                success=False,
+                error=f"Agent {agent.__class__.__name__} raised exception: {str(e)}"
+            )
+            results[agent.__class__.__name__] = error_result
+            return results
+
+        # Propagate errors from agents
+        if not result.success:
+            results[agent.__class__.__name__] = result
+            return results
+
         results[agent.__class__.__name__] = result
 
-        # Update context for next agent
+        # Update context for next agent with all accumulated results
         context["results"] = results
         context["result"] = result
+
+        # Propagate key data from current result to context for dependent agents
+        if hasattr(agent, "_propagate_to_context"):
+            agent._propagate_to_context(context, result)
 
     return results
