@@ -1,6 +1,6 @@
 """Analyze command for codebase analysis."""
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 import json
 
@@ -178,22 +178,32 @@ def analyze_and_generate(
         Documentation output
     """
     # Step 1: Analyze codebase
-    analysis = analyze_codebase(path, use_agents)
+    analysis: Dict[str, Any] = analyze_codebase(path, use_agents)
 
     if verbose:
         print(format_analysis(analysis))
 
     # Step 2: Generate README (using AI or fallback)
+    technicalwriter_result = analysis.get('agents', {}).get('TechnicalWriter')
+    tw_metadata = None
+    if technicalwriter_result and technicalwriter_result.success:
+        if hasattr(technicalwriter_result, 'metadata'):
+            tw_metadata = technicalwriter_result.metadata
     readme = generate_readme(
         analysis['codebase'],
         analysis['metadata'],
-        analysis.get('agents', {}).get('TechnicalWriter', {}).metadata if use_agents else analysis
+        tw_metadata if use_agents else analysis
     )
 
     # Step 3: Generate diagram (using AI or fallback)
+    architect_result = analysis.get('agents', {}).get('Architect')
+    arch_metadata = None
+    if architect_result and architect_result.success:
+        if hasattr(architect_result, 'metadata'):
+            arch_metadata = architect_result.metadata
     diagram = generate_diagram(
         analysis['codebase'],
-        analysis.get('agents', {}).get('Architect', {}).metadata if use_agents else analysis
+        arch_metadata if use_agents else analysis
     )
 
     # Step 4: Generate API docs (if endpoints exist)
@@ -205,7 +215,7 @@ def analyze_and_generate(
     setup = generate_setup_instructions(path)
 
     # Combine all outputs
-    output = []
+    output: List[str] = []
 
     if verbose:
         output.append("=== Generated Documentation ===")
