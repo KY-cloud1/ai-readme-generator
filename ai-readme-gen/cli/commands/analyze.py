@@ -6,7 +6,18 @@ import json
 
 from ..analysis.codebase import scan_codebase
 from ..analysis.extractor import extract_project_metadata, extract_api_endpoints, extract_setup_instructions
-from ..ai.client import call_ai_model, AIProvider, extract_json_response
+from ..analysis.agent import (
+    create_agent_pipeline,
+    run_agent_pipeline,
+    AgentResult,
+    Agent,
+    CodebaseAnalyst,
+    Architect,
+    TechnicalWriter,
+    APIExtractor as AgentAPIExtractor,
+    Reviewer,
+)
+from ..ai.client import call_ai_model, AIProvider, extract_json_response, AuthenticationError
 from ..ai.prompts import (
     create_analysis_prompt,
     create_readme_prompt,
@@ -16,12 +27,13 @@ from ..ai.prompts import (
 from .generate import generate_readme, generate_diagram, generate_api_docs, generate_setup_instructions
 
 
-def analyze_codebase(path: str) -> Dict[str, Any]:
+def analyze_codebase(path: str, use_agents: bool = False) -> Dict[str, Any]:
     """
     Analyze a codebase and return structured information.
 
     Args:
         path: Path to the codebase root
+        use_agents: Whether to use agent simulation
 
     Returns:
         Dictionary containing analysis results
@@ -38,11 +50,23 @@ def analyze_codebase(path: str) -> Dict[str, Any]:
     # Extract setup instructions
     setup = extract_setup_instructions(path)
 
+    # Run agent simulation if enabled
+    agent_results = {}
+    if use_agents:
+        context = {
+            "codebase": codebase_info,
+            "metadata": metadata,
+            "endpoints": endpoints,
+            "setup": setup,
+        }
+        agent_results = run_agent_pipeline(context)
+
     return {
         "codebase": codebase_info,
         "metadata": metadata,
         "endpoints": endpoints,
         "setup": setup,
+        "agents": agent_results,
     }
 
 
@@ -101,6 +125,31 @@ def format_analysis(analysis: Dict[str, Any]) -> str:
     else:
         lines.append("No API endpoints detected")
 
+    # Include agent results if available
+    if 'agents' in analysis:
+        lines.extend([
+            "",
+            "=== Agent Simulation Results ===",
+            "",
+        ])
+        for agent_name, result in analysis['agents'].items():
+            lines.append(f"--- {agent_name} ---")
+            if hasattr(result, 'metadata'):
+                meta = result.metadata
+                if meta.get('patterns'):
+                    lines.append(f"Patterns: {', '.join(meta['patterns'])}")
+                if meta.get('tech_stack'):
+                    lines.append(f"Tech Stack: {', '.join(meta['tech_stack'])}")
+                if meta.get('file_distribution'):
+                    lines.append("File Distribution:")
+                    for lang, files in meta['file_distribution'].items():
+                        lines.append(f"  - {lang}: {len(files)} files")
+                if meta.get('entry_points'):
+                    lines.append(f"Entry Points: {', '.join(meta['entry_points'])}")
+                if meta.get('dependencies'):
+                    lines.append(f"Dependencies: {', '.join(meta['dependencies'])}")
+            lines.append("")
+
     lines.extend([
         "",
         "=== Analysis Complete ===",
@@ -110,7 +159,12 @@ def format_analysis(analysis: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def analyze_and_generate(path: str, output_format: str = "text", verbose: bool = False) -> str:
+def analyze_and_generate(
+    path: str,
+    output_format: str = "text",
+    verbose: bool = False,
+    use_agents: bool = False
+) -> str:
     """
     Analyze codebase and generate documentation.
 
@@ -118,27 +172,28 @@ def analyze_and_generate(path: str, output_format: str = "text", verbose: bool =
         path: Path to the codebase
         output_format: Output format ("text" or "json")
         verbose: Whether to show verbose output
+        use_agents: Whether to use agent simulation
 
     Returns:
         Documentation output
     """
     # Step 1: Analyze codebase
-    analysis = analyze_codebase(path)
+    analysis = analyze_codebase(path, use_agents)
 
     if verbose:
         print(format_analysis(analysis))
 
-    # Step 2: Generate README
+    # Step 2: Generate README (using AI or fallback)
     readme = generate_readme(
         analysis['codebase'],
         analysis['metadata'],
-        analysis
+        analysis.get('agents', {}).get('TechnicalWriter', {}).metadata if use_agents else analysis
     )
 
-    # Step 3: Generate diagram
+    # Step 3: Generate diagram (using AI or fallback)
     diagram = generate_diagram(
         analysis['codebase'],
-        analysis
+        analysis.get('agents', {}).get('Architect', {}).metadata if use_agents else analysis
     )
 
     # Step 4: Generate API docs (if endpoints exist)
@@ -176,6 +231,7 @@ def analyze_and_generate(path: str, output_format: str = "text", verbose: bool =
             "diagram": diagram,
             "api_docs": api_docs,
             "setup": setup,
+            "agents": analysis.get('agents', {}),
         }, indent=2)
 
     return "\n".join(output)

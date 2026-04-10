@@ -55,7 +55,8 @@ def main(model):
 @click.option("--format", "-f", type=click.Choice(["text", "json"]), default="text",
               help="Output format (default: text)")
 @click.option("--verbose", "-v", is_flag=True, help="Show verbose output")
-def analyze(path, output, format, verbose):
+@click.option("--use-agents", is_flag=True, help="Use agent simulation for analysis")
+def analyze(path, output, format, verbose, use_agents):
     """Analyze a codebase and generate documentation.
 
     PATH: Path to the project directory to analyze
@@ -66,7 +67,7 @@ def analyze(path, output, format, verbose):
         raise click.exceptions.Exit(1)
 
     # Run analysis
-    output_content = analyze_and_generate(path, format, verbose)
+    output_content = analyze_and_generate(path, format, verbose, use_agents)
 
     # Write output if specified
     if output:
