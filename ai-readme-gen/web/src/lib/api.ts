@@ -4,6 +4,10 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+if (!API_BASE_URL || API_BASE_URL === "") {
+  console.warn("Warning: NEXT_PUBLIC_API_URL environment variable is not set or empty. Using default fallback.");
+}
+
 export interface Project {
   id: string;
   name: string;
