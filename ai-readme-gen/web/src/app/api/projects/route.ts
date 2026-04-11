@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate content-type header
+    const contentType = request.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      return NextResponse.json(
+        { error: "Content-Type must be application/json" },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const { name, path } = body;
 
@@ -25,6 +34,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(project);
   } catch (error) {
+    if (error instanceof Error && error.message.includes("JSON")) {
+      return NextResponse.json(
+        { error: "Invalid JSON body" },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { error: "Failed to create project" },
       { status: 500 }
