@@ -10,6 +10,7 @@ from ..analysis.agent import (
     create_agent_pipeline,
     run_agent_pipeline,
     Agent,
+    AgentResult,
     CodebaseAnalyst,
     Architect,
     TechnicalWriter,
