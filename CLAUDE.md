@@ -97,6 +97,7 @@ Commits represent decisions, not progress.
 - Do NOT commit incomplete or broken states
 - Do NOT commit experimental or partial work
 - Do NOT mix unrelated changes in one commit
+- Do NOT user uppercase letters to start the commit message or the commit body message
 
 #### Commit message format:
 Use conventional commits:
