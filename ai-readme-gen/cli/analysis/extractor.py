@@ -59,22 +59,23 @@ def extract_from_pyproject(path: str) -> Dict[str, Any]:
     with open(path, 'rb') as f:
         data = tomllib.load(f)
 
+    project = data.get("project", {})
+    urls = project.get("urls", [])
+
     result: Dict[str, Any] = {
-        "name": data.get("project", {}).get("name"),
-        "version": data.get("project", {}).get("version"),
-        "description": data.get("project", {}).get("description"),
-        "keywords": data.get("project", {}).get("keywords", []),
-        "license": data.get("project", {}).get("license", {}).get("text"),
-        "repository": data.get("project", {}).get("urls", [])[0] if data.get("project", {}).get("urls") else None,
+        "name": project.get("name"),
+        "version": project.get("version"),
+        "description": project.get("description"),
+        "keywords": project.get("keywords", []),
+        "license": project.get("license", {}).get("text") if project.get("license") else None,
+        "repository": urls[0] if urls else None,
     }
 
     # Extract author from tool.poetry or project
-    author: Optional[str] = None
     if "tool" in data and "poetry" in data["tool"]:
         authors = data["tool"]["poetry"].get("authors")
         if authors:
-            author = authors[0]
-    result["author"] = author or None
+            result["author"] = authors[0]
 
     return result
 

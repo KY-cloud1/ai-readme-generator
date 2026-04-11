@@ -11,10 +11,10 @@ def parse_file(file_path: str) -> Dict[str, Any]:
     """Parse a file based on its language.
 
     Args:
-        file_path: Path to the file
+        file_path: Path to the file to parse
 
     Returns:
-        Parsed file information
+        Dictionary containing parsed information for the appropriate language
     """
     ext = Path(file_path).suffix.lower()
 
@@ -35,10 +35,10 @@ def extract_dependencies(file_path: str) -> List[str]:
     """Extract dependencies from a file.
 
     Args:
-        file_path: Path to the file
+        file_path: Path to the file to extract dependencies from
 
     Returns:
-        List of dependency names/paths
+        List of dependency names/paths imported in the file
     """
     ext = Path(file_path).suffix.lower()
 

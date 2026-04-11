@@ -1,5 +1,6 @@
 """Codebase traversal and analysis."""
 
+import ast
 import os
 import re
 from pathlib import Path
@@ -83,7 +84,7 @@ def scan_codebase(path: str) -> Dict[str, Any]:
                 codebase_info["languages"][language]["files"].append(relative_path)
 
                 # Track root-level files
-                if os.path.basename(relative_path) == os.path.basename(file_path):
+                if file_path.name == relative_path:
                     codebase_info["root_files"].append(relative_path)
 
     return codebase_info
@@ -96,10 +97,8 @@ def parse_python_file(file_path: str) -> Dict[str, Any]:
         file_path: Path to the Python file
 
     Returns:
-        Dictionary containing parsed information
+        Dictionary containing parsed information including imports, classes, and functions
     """
-    import ast
-
     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
         try:
             tree = ast.parse(f.read())
@@ -163,7 +162,7 @@ def parse_javascript_file(file_path: str) -> Dict[str, Any]:
         file_path: Path to the JavaScript/TypeScript file
 
     Returns:
-        Dictionary containing parsed information
+        Dictionary containing parsed information including imports, exports, classes, and functions
     """
     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
         content = f.read()
@@ -177,11 +176,11 @@ def parse_javascript_file(file_path: str) -> Dict[str, Any]:
     # This is a basic implementation; a full parser would use acorn or similar
 
     # Find imports (ESM and CommonJS)
-    esm_imports = content.findall(r'import\s+.*?from\s+[\'"]([^\'"]+)[\'"]')
+    esm_imports = re.findall(r'import\s+.*?from\s+[\'"]([^\'"]+)[\'"]', content)
     for imp in esm_imports:
         imports.append(f"from '{imp}'")
 
-    commonjs_imports = content.findall(r'require\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)')
+    commonjs_imports = re.findall(r'require\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)', content)
     for imp in commonjs_imports:
         imports.append(f"require('{imp}')")
 

@@ -1,6 +1,6 @@
 """Analyze command for codebase analysis."""
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any
 
 import json
 
@@ -120,7 +120,7 @@ def format_analysis(analysis: Dict[str, Any]) -> str:
         lines.append("No API endpoints detected")
 
     # Include agent results if available
-    if 'agents' in analysis:
+    if analysis.get('agents'):
         lines.extend([
             "",
             "=== Agent Simulation Results ===",
@@ -130,7 +130,7 @@ def format_analysis(analysis: Dict[str, Any]) -> str:
             lines.append(f"--- {agent_name} ---")
 
             # Handle both AgentResult objects and dict results
-            if hasattr(result, 'metadata'):
+            if isinstance(result, AgentResult):
                 meta = result.metadata
             elif isinstance(result, dict):
                 meta = result
@@ -141,22 +141,27 @@ def format_analysis(analysis: Dict[str, Any]) -> str:
 
             # Only display if there's meaningful data
             displayed = False
-            if meta.get('patterns'):
-                lines.append(f"Patterns: {', '.join(meta['patterns'])}")
+            patterns = meta.get('patterns')
+            if patterns:
+                lines.append(f"Patterns: {', '.join(patterns)}")
                 displayed = True
-            if meta.get('tech_stack'):
-                lines.append(f"Tech Stack: {', '.join(meta['tech_stack'])}")
+            tech_stack = meta.get('tech_stack')
+            if tech_stack:
+                lines.append(f"Tech Stack: {', '.join(tech_stack)}")
                 displayed = True
-            if meta.get('file_distribution'):
+            file_distribution = meta.get('file_distribution')
+            if file_distribution:
                 lines.append("File Distribution:")
-                for lang, files in meta['file_distribution'].items():
+                for lang, files in file_distribution.items():
                     lines.append(f"  - {lang}: {len(files)} files")
                 displayed = True
-            if meta.get('entry_points'):
-                lines.append(f"Entry Points: {', '.join(meta['entry_points'])}")
+            entry_points = meta.get('entry_points')
+            if entry_points:
+                lines.append(f"Entry Points: {', '.join(entry_points)}")
                 displayed = True
-            if meta.get('dependencies'):
-                lines.append(f"Dependencies: {', '.join(meta['dependencies'])}")
+            dependencies = meta.get('dependencies')
+            if dependencies:
+                lines.append(f"Dependencies: {', '.join(dependencies)}")
                 displayed = True
 
             if not displayed:
@@ -225,7 +230,7 @@ def analyze_and_generate(
         api_docs = generate_api_docs(analysis['endpoints'])
 
     # Step 5: Generate setup instructions
-    setup = generate_setup_instructions(path)
+    generate_setup_instructions(path)
 
     # Combine all outputs
     output: List[str] = []
@@ -243,17 +248,12 @@ def analyze_and_generate(
     output.append("=== API Documentation ===")
     output.append("")
     output.append(api_docs)
-    output.append("")
-    output.append("=== Setup Instructions ===")
-    output.append("")
-    output.append(setup)
 
     if output_format == "json":
         return json.dumps({
             "readme": readme,
             "diagram": diagram,
             "api_docs": api_docs,
-            "setup": setup,
             "agents": analysis.get('agents', {}),
         }, indent=2)
 

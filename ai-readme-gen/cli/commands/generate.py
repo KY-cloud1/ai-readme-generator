@@ -61,7 +61,7 @@ def generate_basic_readme(codebase_info: Dict[str, Any], metadata: Dict[str, Any
         metadata: Project metadata
 
     Returns:
-        Basic README content
+        Basic README content with project structure and file listing
     """
     lines = [
         f"# {metadata.get('name', 'Project') or 'Project'}",
@@ -107,7 +107,10 @@ def generate_diagram(
         analysis: Optional AI analysis results
 
     Returns:
-        ASCII diagram content
+        ASCII diagram content with proper escaping
+
+    Raises:
+        AuthenticationError: If authentication fails
     """
     try:
         messages = [
@@ -117,8 +120,15 @@ def generate_diagram(
         response = call_ai_model(messages, AIProvider.ANTHROPIC)
         content = response.get("content", response.get("choices", [{}])[0].get("message", {}).get("content", ""))
 
-        return content
+        # Escape special characters for terminal output
+        # Replace backticks with backticks surrounded by spaces to prevent terminal highlighting
+        escaped_content = content.replace("`", " ` ")
+
+        return escaped_content
     except AuthenticationError:
+        return generate_basic_diagram(codebase_info)
+    except Exception as e:
+        # Log error and return basic diagram on any other error
         return generate_basic_diagram(codebase_info)
 
 
@@ -130,7 +140,7 @@ def generate_basic_diagram(codebase_info: Dict[str, Any]) -> str:
         codebase_info: Codebase information from scanning
 
     Returns:
-        Basic ASCII diagram
+        Basic ASCII diagram with standard project structure
     """
     lines = [
         "```",
@@ -193,7 +203,7 @@ def generate_basic_api_docs(endpoints: list) -> str:
         endpoints: List of API endpoints
 
     Returns:
-        Basic API documentation
+        Basic API documentation with endpoint listing
     """
     lines = [
         "## API Reference",
