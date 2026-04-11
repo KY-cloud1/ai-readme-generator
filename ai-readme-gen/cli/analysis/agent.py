@@ -83,7 +83,7 @@ class CodebaseAnalyst(Agent):
 
         return AgentResult(success=True, metadata=result)
 
-    def _propagate_to_context(self, context: Dict, result: AgentResult) -> None:
+    def _propagate_to_context(self, context: Dict, result: AgentResult) -> Dict[str, Any]:
         """Propagate analysis results to context for dependent agents.
 
         This method mutates the context in-place for backward compatibility
@@ -245,7 +245,7 @@ class Architect(Agent):
             metadata={"patterns": patterns}
         )
 
-    def _propagate_to_context(self, context: Dict, result: AgentResult) -> None:
+    def _propagate_to_context(self, context: Dict, result: AgentResult) -> Dict[str, Any]:
         """Propagate architectural patterns to context for dependent agents.
 
         This method mutates the context in-place for backward compatibility
@@ -282,8 +282,8 @@ class TechnicalWriter(Agent):
             else:
                 description = "A software project"
 
-        # Generate features list
-        features = self._extract_features(analysis, file_dist)
+        # Generate features list based on detected patterns and languages
+        features = self._generate_features_list(metadata, analysis)
 
         # Generate tech stack
         tech_stack = self._extract_tech_stack(file_dist)
@@ -308,21 +308,43 @@ class TechnicalWriter(Agent):
         context["tech_stack"] = copy.deepcopy(metadata.get("tech_stack", []))
         context["installation"] = copy.deepcopy(metadata.get("installation", ""))
 
-    def _extract_features(self, analysis: Dict[str, Any], file_dist: Dict[str, Any]) -> List[str]:
-        """Extract features from analysis."""
-        features = []
-
-        if analysis.get("entry_points"):
-            features.append("Multiple entry points for different use cases")
-
-        if analysis.get("dependencies"):
-            features.append("Well-defined dependency management")
-
-        if "python" in file_dist:
-            features.append("Python-based implementation")
-
+        # Check if JavaScript/TypeScript are in file distribution from context
+        file_dist = context.get("file_distribution", {})
         if "javascript" in file_dist or "typescript" in file_dist:
-            features.append("JavaScript/TypeScript support")
+            features = context.get("features", [])
+            if "JavaScript/TypeScript support" not in features:
+                features.append("JavaScript/TypeScript support")
+            context["features"] = features
+
+    def _generate_features_list(self, metadata: Dict, analysis: Dict) -> List[str]:
+        """Generate features list based on metadata and analysis.
+
+        Args:
+            metadata: Project metadata
+            analysis: Codebase analysis results
+
+        Returns:
+            List of feature strings
+        """
+        features: List[str] = []
+
+        # Add features based on detected entry points
+        entry_points = analysis.get("entry_points", [])
+        if entry_points:
+            features.append("Multiple entry points detected")
+
+        # Add features based on dependencies
+        dependencies = analysis.get("dependencies", [])
+        if dependencies:
+            features.append(f"Uses {len(dependencies)} dependencies")
+
+        # Add features based on file distribution
+        file_dist = analysis.get("file_distribution", {})
+        for lang, files in file_dist.items():
+            if isinstance(files, list) and len(files) > 5:
+                features.append(f"Rich {lang} codebase")
+            elif isinstance(files, list) and len(files) > 0:
+                features.append(f"{lang} implementation")
 
         return features
 
@@ -449,7 +471,7 @@ class APIExtractor(Agent):
 
         return AgentResult(success=True, metadata=result)
 
-    def _propagate_to_context(self, context: Dict[str, Any], result: AgentResult) -> None:
+    def _propagate_to_context(self, context: Dict[str, Any], result: AgentResult) -> Dict[str, Any]:
         """Propagate API endpoint information to context for dependent agents.
 
         This method mutates the context in-place for backward compatibility
@@ -709,7 +731,7 @@ class Reviewer(Agent):
 
         return {"issues": issues}
 
-    def _propagate_to_context(self, context: Dict[str, Any], result: AgentResult) -> None:
+    def _propagate_to_context(self, context: Dict[str, Any], result: AgentResult) -> Dict[str, Any]:
         """Propagate review results to context for dependent agents.
 
         This method mutates the context in-place for backward compatibility
@@ -900,8 +922,10 @@ def run_agent_pipeline(
 
         # Propagate key data from current result to agent_context for dependent agents
         # DO NOT modify the original context - only update the agent's copy
-        if hasattr(agent, "_propagate_to_context"):
-            propagation_result = agent._propagate_to_context(agent_context, result)
+        # Use getattr with default to avoid false positives for static analysis
+        propagate_method = getattr(agent, "_propagate_to_context", None)
+        if propagate_method is not None and callable(propagate_method):
+            propagation_result: Dict[str, Any] = propagate_method(agent_context, result)  # type: ignore
             # Merge propagation result into agent_context (handle None for backward compat)
             if propagation_result:
                 for key, value in propagation_result.items():

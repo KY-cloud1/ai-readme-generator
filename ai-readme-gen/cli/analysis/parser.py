@@ -1,7 +1,8 @@
 """Language-specific parsing utilities."""
 
+import re
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 from .codebase import parse_python_file, parse_javascript_file
 
@@ -15,15 +16,16 @@ def parse_file(file_path: str) -> Dict[str, Any]:
     Returns:
         Dictionary containing parsed information for the appropriate language
     """
-    ext = Path(file_path).suffix.lower()
+    path = Path(file_path)
+    ext = path.suffix.lower()
 
     if ext == '.py':
-        return parse_python_file(file_path)
+        return parse_python_file(str(path))
     elif ext in {'.js', '.jsx', '.ts', '.tsx'}:
-        return parse_javascript_file(file_path)
+        return parse_javascript_file(str(path))
     else:
         return {
-            "path": file_path,
+            "path": str(path),
             "language": "other",
             "extension": ext,
             "parsing": "not_supported",
@@ -42,8 +44,6 @@ def extract_dependencies(file_path: str) -> List[str]:
     Raises:
         FileNotFoundError: If the file does not exist
     """
-    from pathlib import Path
-
     path = Path(file_path)
     if not path.exists():
         raise FileNotFoundError(f"File does not exist: {file_path}")
@@ -52,7 +52,7 @@ def extract_dependencies(file_path: str) -> List[str]:
 
     if ext == '.py':
         # Extract Python imports
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(path, 'r', encoding='utf-8', errors='ignore') as f:
             content = f.read()
 
         deps = []
@@ -67,7 +67,7 @@ def extract_dependencies(file_path: str) -> List[str]:
 
     elif ext in {'.js', '.jsx', '.ts', '.tsx'}:
         # Extract JS/TS imports
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(path, 'r', encoding='utf-8', errors='ignore') as f:
             content = f.read()
 
         deps = []
@@ -102,9 +102,9 @@ def extract_project_dependencies(path: str) -> Dict[str, List[str]]:
         'setup.py': 'python',
     }
 
-    path = Path(path)
+    base_path = Path(path) 
     for dep_file, lang in dep_files.items():
-        dep_path = path / dep_file
+        dep_path = base_path / dep_file
         if dep_path.exists():
             try:
                 deps_by_file[str(dep_path)] = extract_dependencies(str(dep_path))

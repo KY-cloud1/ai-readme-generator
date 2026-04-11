@@ -37,10 +37,10 @@ def scan_codebase(path: str) -> Dict[str, Any]:
     Returns:
         Dictionary containing codebase information
     """
-    path = Path(path).resolve()
+    path_obj = Path(path).resolve()
 
-    if not path.is_dir():
-        raise ValueError(f"Path does not exist: {path}")
+    if not path_obj.is_dir():
+        raise ValueError(f"Path does not exist: {path_obj}")
 
     codebase_info = {
         "path": str(path),

@@ -18,7 +18,7 @@ def extract_project_metadata(path: str) -> Dict[str, Any]:
     Returns:
         Dictionary containing project metadata
     """
-    path = Path(path)
+    path_obj = Path(path)
     metadata = {
         "name": None,
         "description": None,
@@ -30,19 +30,19 @@ def extract_project_metadata(path: str) -> Dict[str, Any]:
     }
 
     # Check pyproject.toml
-    pyproject = path / "pyproject.toml"
+    pyproject = path_obj / "pyproject.toml"
     if pyproject.exists():
-        metadata.update(extract_from_pyproject(pyproject))
+        metadata.update(extract_from_pyproject(str(pyproject)))
 
     # Check package.json
-    package_json = path / "package.json"
+    package_json = path_obj / "package.json"
     if package_json.exists():
-        metadata.update(extract_from_package_json(package_json))
+        metadata.update(extract_from_package_json(str(package_json)))
 
     # Check README.md for project name/description
-    readme = path / "README.md"
+    readme = path_obj / "README.md"
     if readme.exists():
-        metadata.update(extract_from_readme(readme))
+        metadata.update(extract_from_readme(str(readme)))
 
     return metadata
 
@@ -56,7 +56,8 @@ def extract_from_pyproject(path: str) -> Dict[str, Any]:
     Returns:
         Dictionary with extracted metadata fields
     """
-    with open(path, 'rb') as f:
+    base_path = Path(path)
+    with open(base_path, 'rb') as f:
         data = tomllib.load(f)
 
     project = data.get("project", {})
