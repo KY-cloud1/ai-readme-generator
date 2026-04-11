@@ -1,6 +1,5 @@
 """Language-specific parsing utilities."""
 
-import re
 from pathlib import Path
 from typing import Dict, List, Any
 
@@ -39,8 +38,17 @@ def extract_dependencies(file_path: str) -> List[str]:
 
     Returns:
         List of dependency names/paths imported in the file
+
+    Raises:
+        FileNotFoundError: If the file does not exist
     """
-    ext = Path(file_path).suffix.lower()
+    from pathlib import Path
+
+    path = Path(file_path)
+    if not path.exists():
+        raise FileNotFoundError(f"File does not exist: {file_path}")
+
+    ext = path.suffix.lower()
 
     if ext == '.py':
         # Extract Python imports
@@ -98,6 +106,10 @@ def extract_project_dependencies(path: str) -> Dict[str, List[str]]:
     for dep_file, lang in dep_files.items():
         dep_path = path / dep_file
         if dep_path.exists():
-            deps_by_file[str(dep_path)] = extract_dependencies(str(dep_path))
+            try:
+                deps_by_file[str(dep_path)] = extract_dependencies(str(dep_path))
+            except FileNotFoundError:
+                # Skip files that can't be read
+                pass
 
     return deps_by_file

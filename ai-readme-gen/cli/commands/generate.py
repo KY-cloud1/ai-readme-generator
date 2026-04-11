@@ -17,12 +17,14 @@ from ..ai.prompts import (
     create_api_docs_prompt,
     create_review_prompt,
 )
+from ..analysis.agent import AgentResult
 
 
 def generate_readme(
     codebase_info: Dict[str, Any],
     metadata: Dict[str, Any],
-    analysis: Optional[Dict[str, Any]] = None
+    analysis: Optional[Dict[str, Any]] = None,
+    agent_context: Optional[Dict[str, AgentResult]] = None
 ) -> str:
     """
     Generate a README.md file.
@@ -31,10 +33,16 @@ def generate_readme(
         codebase_info: Codebase information from scanning
         metadata: Project metadata
         analysis: Optional AI analysis results
+        agent_context: Optional dictionary of agent results for enhanced context
 
     Returns:
         Generated README content
+
+    Raises:
+        ValueError: If codebase_info or metadata is empty
     """
+    if not codebase_info or not metadata:
+        raise ValueError("codebase_info and metadata cannot be empty")
     try:
         messages = [
             {"role": "user", "content": create_readme_prompt(codebase_info, metadata, analysis or {})},
@@ -97,21 +105,26 @@ def generate_basic_readme(codebase_info: Dict[str, Any], metadata: Dict[str, Any
 
 def generate_diagram(
     codebase_info: Dict[str, Any],
-    analysis: Optional[Dict[str, Any]] = None
+    analysis: Optional[Dict[str, Any]] = None,
+    agent_context: Optional[Dict[str, AgentResult]] = None
 ) -> str:
     """
     Generate ASCII architecture diagram.
 
     Args:
         codebase_info: Codebase information from scanning
-        analysis: Optional AI analysis results
+        analysis: Optional AI analysis results with patterns and entry points
+        agent_context: Optional dictionary of agent results for enhanced context
 
     Returns:
         ASCII diagram content with proper escaping
 
     Raises:
         AuthenticationError: If authentication fails
+        ValueError: If codebase_info is empty or invalid
     """
+    if not codebase_info:
+        raise ValueError("codebase_info cannot be empty")
     try:
         messages = [
             {"role": "user", "content": create_diagram_prompt(codebase_info, analysis or {})},
@@ -168,19 +181,24 @@ def generate_basic_diagram(codebase_info: Dict[str, Any]) -> str:
 
 
 def generate_api_docs(
-    endpoints: Optional[list] = None
+    endpoints: Optional[list] = None,
+    agent_context: Optional[Dict[str, AgentResult]] = None
 ) -> str:
     """
     Generate API documentation.
 
     Args:
         endpoints: Optional list of API endpoints
+        agent_context: Optional dictionary of agent results for enhanced context
 
     Returns:
         API documentation content
+
+    Raises:
+        ValueError: If endpoints is None or empty
     """
-    if not endpoints:
-        return "No API endpoints found.\n\n## API Reference\n\nAPI documentation not available for this project."
+    if endpoints is None or len(endpoints) == 0:
+        raise ValueError("endpoints cannot be empty")
 
     try:
         messages = [

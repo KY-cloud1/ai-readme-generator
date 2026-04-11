@@ -1,15 +1,25 @@
-"""Simulated agent roles for documentation generation."""
+"""Simulated agent roles for documentation generation.
+
+This module provides agent classes for analyzing codebases and generating documentation.
+Agents run in a pipeline where each agent receives context from previous agents.
+
+Example usage:
+    from agent import AgentPipeline, Architect
+    pipeline = AgentPipeline()
+    result = pipeline.run(context={"codebase": {...}})
+    # Returns: AgentResult with analysis patterns and metadata
+"""
 
 import copy
+from typing import Dict, Any, List, Optional
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, Any, List
 
 
 # Entry point keywords to detect potential main entry files in the codebase.
 # These keywords are used to identify files that may serve as application entry points
 # (e.g., main.py, app.py, entry.py, cli.py).
-ENTRY_POINT_KEYWORDS: List[str] = ["main", "app", "entry", "cli", "run", "start"]
+ENTRY_POINT_KEYWORDS = ["main", "app", "entry", "cli", "run", "start"]
 
 # Maximum number of entry points to return
 MAX_ENTRY_POINTS: int = 5
@@ -24,6 +34,10 @@ class AgentResult:
         output: The main output or result from the agent
         metadata: Additional contextual information about the result
         error: Error message if the operation failed (only set when success=False)
+
+    Example:
+        result = AgentResult(success=True, output="Analysis complete")
+        result.metadata["patterns"] = ["Python application"]
     """
     success: bool
     output: str = ""
@@ -32,9 +46,8 @@ class AgentResult:
 
 
 class Agent(ABC):
-    @abstractmethod
     def run(self, context: Dict[str, Any]) -> AgentResult:
-        pass
+        raise NotImplementedError("Subclasses must implement run()")
 
 
 class CodebaseAnalyst(Agent):
@@ -90,14 +103,14 @@ class CodebaseAnalyst(Agent):
             files: List of file information dictionaries
 
         Returns:
-            List of up to 5 entry point paths based on filename patterns
+            List of entry point paths based on filename patterns
         """
-        entry_points: List[str] = []
+        entry_points = []
         for file in files:
             path = file.get("path", "")
             if any(entry in path.lower() for entry in ENTRY_POINT_KEYWORDS):
                 entry_points.append(path)
-        return entry_points[:MAX_ENTRY_POINTS]  # Limit to top N most likely entry points
+        return entry_points[:MAX_ENTRY_POINTS]
 
     def _find_dependencies(self, files: List[Dict]) -> List[str]:
         """Find dependencies from imports.
@@ -108,7 +121,7 @@ class CodebaseAnalyst(Agent):
         Returns:
             Sorted list of unique dependency names
         """
-        dependencies: set = set()
+        dependencies = set()
         for file in files:
             language = file.get("language", "")
             if language == "python":
@@ -123,11 +136,10 @@ class CodebaseAnalyst(Agent):
                 imports = self._extract_js_imports(file.get("path", ""))
                 dependencies.update(imports)
         if not dependencies:
-            # Log warning when no dependencies found
-            pass
-        return sorted(list(dependencies))
+            print("Warning: No dependencies found")
+        return sorted(dependencies)
 
-    def _extract_python_imports(self, file_path: str) -> set:
+    def _extract_python_imports(self, file_path: str):
         """Extract Python imports from a file.
 
         Args:
@@ -193,7 +205,7 @@ class Architect(Agent):
         file_dist = metadata.get("file_distribution", {})
 
         # Detect patterns based on file structure
-        patterns: List[str] = []
+        patterns = []
 
         if "python" in file_dist:
             patterns.append("Python application")
@@ -285,7 +297,7 @@ class TechnicalWriter(Agent):
         if "javascript" in file_dist or "typescript" in file_dist:
             features.append("JavaScript/TypeScript support")
 
-        return features[:5]
+        return features
 
     def _extract_tech_stack(self, file_dist: Dict) -> List[str]:
         """Extract technology stack from file distribution."""
@@ -377,8 +389,19 @@ class Reviewer(Agent):
         # Returns: AgentResult with rating "PASS" or "Review Required"
     """
 
-    def run(self, context: Dict[str, Any]) -> AgentResult:
+    def run(self, context: Dict[str, Any], previous_results: Optional[Dict[str, Any]] = None) -> AgentResult:
+        """Run the reviewer agent with previous results.
+
+        Args:
+            context: Full context dictionary
+            previous_results: Optional dictionary of previous agent results
+
+        Returns:
+            AgentResult with review rating
+        """
         all_results = context.get("results", {})
+        if previous_results:
+            all_results.update(previous_results)
 
         # Check if any previous agent failed
         # Handle both AgentResult objects and dict results
@@ -403,7 +426,7 @@ class Reviewer(Agent):
         completeness = self._check_completeness(all_results)
 
         # Check for accuracy
-        accuracy = self._check_accuracy(all_results)
+        accuracy = self._check_accuracy(all_results, context)
 
         # Validate against actual codebase
         validation = self._validate_against_codebase(all_results, context)
@@ -463,7 +486,7 @@ class Reviewer(Agent):
 
         return {"issues": issues}
 
-    def _check_accuracy(self, results: Dict[str, Any]) -> Dict[str, Any]:
+    def _check_accuracy(self, results: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """Check content accuracy against actual codebase."""
         issues: List[str] = []
 
@@ -473,20 +496,35 @@ class Reviewer(Agent):
             tech_stack = tech_stack.metadata.get("tech_stack") if tech_stack.success else None
 
         # Validate tech stack against actual codebase
-        codebase = results.get("codebase", {})
+        codebase = context.get("codebase", {})
         actual_languages = codebase.get("languages", {})
 
         if isinstance(tech_stack, list):
             for tech in tech_stack:
-                if tech not in actual_languages:
+                # Check case-insensitively
+                tech_lower = tech.lower()
+                if not any(lang.lower() == tech_lower for lang in actual_languages):
                     issues.append(f"Tech stack mentions {tech} but it's not in the codebase")
 
         # Validate features against detected entry points
         features = results.get("features", [])
         entry_points = results.get("entry_points", [])
+        file_dist = codebase.get("file_distribution", {})
         if isinstance(features, list) and isinstance(entry_points, list):
             if len(features) > 0 and len(entry_points) == 0:
-                issues.append("Features claimed but no entry points detected")
+                # Check if any files in file_distribution could be entry points
+                entry_keywords = {"main", "app", "entry", "cli", "run", "start"}
+                has_potential_entry = False
+                for lang, files in file_dist.items():
+                    if isinstance(files, list):
+                        for file in files:
+                            if isinstance(file, str) and any(kw in file.lower() for kw in entry_keywords):
+                                has_potential_entry = True
+                                break
+                    if has_potential_entry:
+                        break
+                if not has_potential_entry:
+                    issues.append("Features claimed but no entry points detected")
 
         # Validate that patterns match file distribution
         patterns = results.get("patterns", [])
@@ -494,9 +532,9 @@ class Reviewer(Agent):
         if isinstance(patterns, list) and isinstance(file_dist, dict):
             for pattern in patterns:
                 if "python" in file_dist and "Python" not in pattern:
-                    pass  # Allow for varied pattern naming
+                    pass
                 if "javascript" in file_dist and "JavaScript" not in pattern:
-                    pass  # Allow for varied pattern naming
+                    pass
 
         # Check for hallucinated dependencies
         dependencies = results.get("dependencies", [])
@@ -550,9 +588,9 @@ class Reviewer(Agent):
         if isinstance(patterns, list) and isinstance(file_dist, dict):
             for pattern in patterns:
                 if "python" in file_dist and "Python" not in pattern:
-                    pass  # Allow for varied pattern naming
+                    pass
                 if "javascript" in file_dist and "JavaScript" not in pattern:
-                    pass  # Allow for varied pattern naming
+                    pass
 
         # Check for hallucinated features
         features = results.get("features", [])
@@ -574,16 +612,32 @@ class Reviewer(Agent):
 
 
 class AgentPipeline:
-    """Configurable agent pipeline for documentation generation."""
+    """Configurable agent pipeline for documentation generation.
 
-    def __init__(self, agents: Optional[List[Agent]] = None) -> None:
+    Attributes:
+        agents: List of agents in the pipeline
+        configuration: Pipeline configuration options
+
+    Example:
+        pipeline = AgentPipeline(agents=[CustomAgent()])
+        pipeline.configuration["verbose"] = True
+        results = pipeline.run(context={"codebase": {...}})
+    """
+
+    def __init__(
+        self,
+        agents: Optional[List[Agent]] = None,
+        configuration: Optional[Dict[str, Any]] = None
+    ) -> None:
         """
         Initialize the agent pipeline.
 
         Args:
             agents: Optional list of agents. If not provided, uses default agents.
+            configuration: Pipeline configuration options (e.g., {"verbose": True})
         """
         self.agents = agents or self._get_default_agents()
+        self.configuration = configuration or {}
 
     def _get_default_agents(self) -> List[Agent]:
         """Get the default set of agents for the pipeline."""
@@ -604,27 +658,74 @@ class AgentPipeline:
         self.agents = [a for a in self.agents if not isinstance(a, agent_class)]
 
     def get_agents(self) -> List[Agent]:
-        """Get a copy of the current agent list."""
+        """Get a copy of the current agent list.
+
+        Returns:
+            List of agents in the pipeline
+        """
         return list(self.agents)
 
+    def get_configuration(self) -> Dict[str, Any]:
+        """Get the pipeline configuration.
 
-def create_agent_pipeline() -> List[Agent]:
-    """Create the default agent pipeline."""
+        Returns:
+            Dictionary of configuration options
+        """
+        return self.configuration
+
+    def set_configuration(self, configuration: Dict[str, Any]) -> None:
+        """Set the pipeline configuration.
+
+        Args:
+            configuration: New configuration options
+        """
+        self.configuration = configuration
+
+    def run(self, context: Dict[str, Any], agents: Optional[List[Agent]] = None) -> Dict[str, Any]:
+        """Run the agent pipeline.
+
+        Args:
+            context: Initial context with codebase info
+            agents: Optional list of agents to override default agents
+
+        Returns:
+            Dictionary with all agent results
+        """
+        return run_agent_pipeline(context, agents or self.agents)
+
+
+def create_agent_pipeline(agents: Optional[List[Agent]] = None) -> List[Agent]:
+    """Create the default agent pipeline.
+
+    Args:
+        agents: Optional list of agents. If not provided, uses default agents.
+
+    Returns:
+        List of agents in the pipeline
+    """
     return AgentPipeline()._get_default_agents()
 
 
-def run_agent_pipeline(context: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Run the full agent pipeline with proper state dependency.
+def run_agent_pipeline(
+    context: Dict[str, Any],
+    agents: Optional[List[Agent]] = None
+) -> Dict[str, Any]:
+    """Run the full agent pipeline with proper state dependency.
 
     Each agent runs sequentially, with results from previous agents
     passed to subsequent agents via the context dictionary.
 
     Args:
         context: Initial context with codebase info
+        agents: Optional list of agents. If not provided, uses default agents.
 
     Returns:
         Dictionary with all agent results
+
+    Example:
+        context = {"codebase": {...}, "metadata": {...}}
+        results = run_agent_pipeline(context)
+        # Returns: {"CodebaseAnalyst": AgentResult(...), ...}
     """
     # Validate input context structure
     required_keys = ["codebase"]

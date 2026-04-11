@@ -36,7 +36,15 @@ def analyze_codebase(path: str, use_agents: bool = False) -> Dict[str, Any]:
 
     Returns:
         Dictionary containing analysis results
+
+    Raises:
+        FileNotFoundError: If path does not exist
     """
+    from pathlib import Path
+
+    if not Path(path).exists():
+        raise FileNotFoundError(f"Path does not exist: {path}")
+
     # Scan codebase
     codebase_info = scan_codebase(path)
 
@@ -65,8 +73,7 @@ def analyze_codebase(path: str, use_agents: bool = False) -> Dict[str, Any]:
 
 
 def format_analysis(analysis: Dict[str, Any]) -> str:
-    """
-    Format analysis results for display.
+    """Format analysis results for display.
 
     Args:
         analysis: Analysis results dictionary
@@ -131,8 +138,16 @@ def format_analysis(analysis: Dict[str, Any]) -> str:
 
             # Handle both AgentResult objects and dict results
             if isinstance(result, AgentResult):
+                if not result.success:
+                    lines.append(f"Agent {agent_name} failed")
+                    lines.append("")
+                    continue
                 meta = result.metadata
             elif isinstance(result, dict):
+                if not result.get('success', True):
+                    lines.append(f"Agent {agent_name} failed")
+                    lines.append("")
+                    continue
                 meta = result
             else:
                 lines.append("No metadata available")
@@ -194,7 +209,12 @@ def analyze_and_generate(
 
     Returns:
         Documentation output
+
+    Raises:
+        FileNotFoundError: If path does not exist
     """
+    from typing import List
+
     # Step 1: Analyze codebase
     analysis: Dict[str, Any] = analyze_codebase(path, use_agents)
 
@@ -210,7 +230,8 @@ def analyze_and_generate(
     readme = generate_readme(
         analysis['codebase'],
         analysis['metadata'],
-        tw_metadata if use_agents else analysis
+        tw_metadata if use_agents else analysis,
+        analysis.get('agents') if use_agents else None
     )
 
     # Step 3: Generate diagram (using AI or fallback)
@@ -221,13 +242,14 @@ def analyze_and_generate(
             arch_metadata = architect_result.metadata
     diagram = generate_diagram(
         analysis['codebase'],
-        arch_metadata if use_agents else analysis
+        arch_metadata if use_agents else analysis,
+        analysis.get('agents') if use_agents else None
     )
 
     # Step 4: Generate API docs (if endpoints exist)
     api_docs = ""
     if analysis.get('endpoints'):
-        api_docs = generate_api_docs(analysis['endpoints'])
+        api_docs = generate_api_docs(analysis['endpoints'], analysis.get('agents') if use_agents else None)
 
     # Step 5: Generate setup instructions
     generate_setup_instructions(path)
