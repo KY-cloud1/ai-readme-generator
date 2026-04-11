@@ -1,19 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// TODO: Configure backend API URL
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
-
-if (!BACKEND_URL) {
-  console.warn("Warning: BACKEND_URL environment variable is not set. Using default fallback.");
-}
 
 export async function POST(request: NextRequest) {
   try {
-    // Parse JSON body
+    const contentType = request.headers.get("content-type");
+
+    if (!contentType?.includes("application/json")) {
+      return NextResponse.json(
+        { error: "Content-Type must be application/json" },
+        { status: 400 }
+      );
+    }
+
+    // Parse JSON body.
     let body;
     try {
       body = await request.json();
-    } catch (parseError) {
+    } catch {
       return NextResponse.json(
         { error: "Invalid JSON body" },
         { status: 400 }
@@ -29,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Call backend CLI for analysis
+    // Call backend CLI for analysis.
     const response = await fetch(`${BACKEND_URL}/analyze`, {
       method: "POST",
       headers: {
@@ -41,7 +45,7 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       return NextResponse.json(
         { error: "Backend analysis failed" },
-        { status: 500 }
+        { status: response.status }
       );
     }
 
@@ -50,6 +54,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error("Failed to analyze project:", error);
+
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
