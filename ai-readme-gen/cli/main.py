@@ -103,6 +103,8 @@ def analyze(path, output, format, verbose, use_agents):
         return 1
 
     # Run analysis
+    if verbose:
+        click.echo(f"Analyzing: {path}")
     output_content = analyze_and_generate(path, format, verbose, use_agents)
     if not output_content:
         click.echo("Error: Failed to generate documentation", err=True)
@@ -115,7 +117,11 @@ def analyze(path, output, format, verbose, use_agents):
         click.echo(f"Documentation written to: {output}")
     else:
         # Escape output for safe terminal display
-        click.echo(output_content, nl=False)
+        from nlwrap import nlwrap
+        # Use nlwrap to properly escape and wrap output for terminal display
+        # This handles special characters and ensures safe terminal rendering
+        escaped_output = "".join(nlwrap(output_content))
+        click.echo(escaped_output, nl=False)
 
     return 0
 
@@ -152,12 +158,8 @@ def diagram(path, output, verbose, use_agents):
             f.write(diagram)
         click.echo(f"Diagram written to: {output}")
     else:
-        if verbose:
-            # Use nlwrap for proper terminal wrapping and escaping
-            from nlwrap import nlwrap
-            click.echo("".join(nlwrap(diagram)), nl=False)
-        else:
-            click.echo(f"Diagram generated: {len(diagram)} characters", nl=False)
+        from nlwrap import nlwrap
+        click.echo("".join(nlwrap(diagram)), nl=False)
 
     return 0
 
@@ -197,12 +199,8 @@ def api(path, output, verbose, use_agents):
             f.write(api_docs)
         click.echo(f"API docs written to: {output}")
     else:
-        if verbose:
-            # Use nlwrap for proper terminal wrapping and escaping
-            from nlwrap import nlwrap
-            click.echo("".join(nlwrap(api_docs)), nl=False)
-        else:
-            click.echo(f"API docs generated: {len(api_docs)} characters", nl=False)
+        from nlwrap import nlwrap
+        click.echo("".join(nlwrap(api_docs)), nl=False)
 
     return 0
 

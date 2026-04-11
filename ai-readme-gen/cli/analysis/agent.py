@@ -85,16 +85,29 @@ class CodebaseAnalyst(Agent):
     def _propagate_to_context(self, context: Dict, result: AgentResult) -> None:
         """Propagate analysis results to context for dependent agents.
 
+        This method mutates the context in-place for backward compatibility
+        with existing tests, but also returns a new dict for safe usage.
+
         Args:
-            context: The context dictionary to update (will be modified in-place)
+            context: The context dictionary (mutated in-place)
             result: The agent result to propagate
+
+        Returns:
+            A new dictionary with propagated values
         """
         metadata = result.metadata or {}
-        # Use copy.deepcopy to ensure we don't share mutable objects
+        # Mutate context in-place for backward compatibility
         context["metadata"] = copy.deepcopy(metadata)
         context["file_distribution"] = copy.deepcopy(metadata.get("file_distribution", {}))
         context["entry_points"] = copy.deepcopy(metadata.get("entry_points", []))
         context["dependencies"] = copy.deepcopy(metadata.get("dependencies", []))
+        # Also return a new dict for safe usage
+        return {
+            "metadata": copy.deepcopy(metadata),
+            "file_distribution": copy.deepcopy(metadata.get("file_distribution", {})),
+            "entry_points": copy.deepcopy(metadata.get("entry_points", [])),
+            "dependencies": copy.deepcopy(metadata.get("dependencies", [])),
+        }
 
     def _find_entry_points(self, files: List[Dict]) -> List[str]:
         """Find potential entry points in files.
@@ -127,7 +140,7 @@ class CodebaseAnalyst(Agent):
             if language == "python":
                 # Skip requirements.txt - it's a dependency manifest, not a source file
                 path = file.get("path", "")
-                if "requirements.txt" not in path:
+                if not path.endswith("requirements.txt"):
                     # Parse imports from Python files
                     imports = self._extract_python_imports(file.get("path", ""))
                     dependencies.update(imports)
@@ -232,11 +245,24 @@ class Architect(Agent):
         )
 
     def _propagate_to_context(self, context: Dict, result: AgentResult) -> None:
-        """Propagate architectural patterns to context for dependent agents."""
+        """Propagate architectural patterns to context for dependent agents.
+
+        This method mutates the context in-place for backward compatibility
+        with existing tests, but also returns a new dict for safe usage.
+
+        Args:
+            context: The context dictionary (mutated in-place)
+            result: The agent result to propagate
+
+        Returns:
+            A new dictionary with propagated values
+        """
         metadata = result.metadata or {}
         patterns = metadata.get("patterns", [])
-        # Use copy.deepcopy to ensure we don't share mutable objects
+        # Mutate context in-place for backward compatibility
         context["patterns"] = copy.deepcopy(patterns)
+        # Also return a new dict for safe usage
+        return {"patterns": copy.deepcopy(patterns)}
 
 
 class TechnicalWriter(Agent):
@@ -300,11 +326,27 @@ class TechnicalWriter(Agent):
         return features
 
     def _extract_tech_stack(self, file_dist: Dict) -> List[str]:
-        """Extract technology stack from file distribution."""
+        """Extract technology stack from file distribution.
+
+        Validates input to prevent unexpected keys from being processed.
+
+        Args:
+            file_dist: File distribution dictionary keyed by language
+
+        Returns:
+            List of language names
+        """
         stack = []
 
+        # Validate input structure
+        if not isinstance(file_dist, dict):
+            return stack
+
+        # Only process known language keys to prevent unexpected behavior
+        known_languages = {"python", "javascript", "typescript", "ruby", "go", "rust", "java"}
         for lang in file_dist.keys():
-            stack.append(lang)
+            if isinstance(lang, str) and lang.strip() and lang.lower() in known_languages:
+                stack.append(lang)
 
         return stack
 
@@ -343,7 +385,21 @@ class APIExtractor(Agent):
     """
 
     def run(self, context: Dict[str, Any]) -> AgentResult:
+        # Validate input context structure
+        if not isinstance(context, dict):
+            return AgentResult(
+                success=False,
+                output="Invalid context: expected dict",
+                metadata={"endpoints": []}
+            )
+
         endpoints = context.get("endpoints", [])
+        if not isinstance(endpoints, list):
+            return AgentResult(
+                success=False,
+                output="Invalid endpoints: expected list",
+                metadata={"endpoints": []}
+            )
 
         if not endpoints:
             return AgentResult(
@@ -352,9 +408,32 @@ class APIExtractor(Agent):
                 metadata={"endpoints": []}
             )
 
+        # Validate endpoints exist in codebase
+        codebase = context.get("codebase", {})
+        file_paths = {f.get("path", "") for f in codebase.get("files", [])}
+
+        valid_endpoints = []
+        for ep in endpoints:
+            # Validate endpoint has required fields
+            if not isinstance(ep, dict):
+                continue
+            path = ep.get("path", "")
+            method = ep.get("method", "GET")
+            # Only include endpoints with valid path and method
+            if path and path in file_paths and method:
+                valid_endpoints.append(ep)
+            # Skip endpoints that don't correspond to actual files or have missing fields
+
+        if not valid_endpoints:
+            return AgentResult(
+                success=True,
+                output="No valid API endpoints found in the codebase.",
+                metadata={"endpoints": []}
+            )
+
         # Group endpoints by method
         grouped = {}
-        for ep in endpoints:
+        for ep in valid_endpoints:
             method = ep.get("method", "GET").upper()
             path = ep.get("path", "")
             if method not in grouped:
@@ -362,18 +441,46 @@ class APIExtractor(Agent):
             grouped[method].append(path)
 
         result = {
-            "endpoints": endpoints,
+            "endpoints": valid_endpoints,
             "grouped": grouped,
-            "total": len(endpoints),
+            "total": len(valid_endpoints),
         }
 
         return AgentResult(success=True, metadata=result)
 
     def _propagate_to_context(self, context: Dict[str, Any], result: AgentResult) -> None:
-        """Propagate API endpoint information to context for dependent agents."""
+        """Propagate API endpoint information to context for dependent agents.
+
+        This method mutates the context in-place for backward compatibility
+        with existing tests, but also returns a new dict for safe usage.
+
+        Args:
+            context: The context dictionary (mutated in-place)
+            result: The agent result to propagate
+
+        Returns:
+            A new dictionary with propagated values
+        """
         metadata = result.metadata or {}
-        context["endpoints"] = copy.deepcopy(metadata.get("endpoints", []))
-        context["grouped_endpoints"] = copy.deepcopy(metadata.get("grouped", {}))
+        if not isinstance(metadata, dict):
+            metadata = {}
+
+        # Mutate context in-place for backward compatibility
+        endpoints = metadata.get("endpoints", [])
+        if not isinstance(endpoints, list):
+            endpoints = []
+        context["endpoints"] = copy.deepcopy(endpoints)
+
+        grouped = metadata.get("grouped", {})
+        if not isinstance(grouped, dict):
+            grouped = {}
+        context["grouped"] = copy.deepcopy(grouped)
+
+        # Also return a new dict for safe usage
+        return {
+            "endpoints": copy.deepcopy(endpoints),
+            "grouped": copy.deepcopy(grouped),
+        }
 
 
 class Reviewer(Agent):
@@ -531,9 +638,9 @@ class Reviewer(Agent):
         file_dist = codebase.get("file_distribution", {})
         if isinstance(patterns, list) and isinstance(file_dist, dict):
             for pattern in patterns:
-                if "python" in file_dist and "Python" not in pattern:
+                if "python" in file_dist and "python" not in pattern.lower():
                     pass
-                if "javascript" in file_dist and "JavaScript" not in pattern:
+                if "javascript" in file_dist and "javascript" not in pattern.lower():
                     pass
 
         # Check for hallucinated dependencies
@@ -587,9 +694,9 @@ class Reviewer(Agent):
         file_dist = codebase.get("file_distribution", {})
         if isinstance(patterns, list) and isinstance(file_dist, dict):
             for pattern in patterns:
-                if "python" in file_dist and "Python" not in pattern:
+                if "python" in file_dist and "python" not in pattern.lower():
                     pass
-                if "javascript" in file_dist and "JavaScript" not in pattern:
+                if "javascript" in file_dist and "javascript" not in pattern.lower():
                     pass
 
         # Check for hallucinated features
@@ -602,13 +709,33 @@ class Reviewer(Agent):
         return {"issues": issues}
 
     def _propagate_to_context(self, context: Dict[str, Any], result: AgentResult) -> None:
-        """Propagate review results to context for dependent agents."""
+        """Propagate review results to context for dependent agents.
+
+        This method mutates the context in-place for backward compatibility
+        with existing tests, but also returns a new dict for safe usage.
+
+        Args:
+            context: The context dictionary (mutated in-place)
+            result: The agent result to propagate
+
+        Returns:
+            A new dictionary with propagated values
+        """
         metadata = result.metadata or {}
+        # Mutate context in-place for backward compatibility
         context["rating"] = metadata.get("rating", "PASS")
         context["review_notes"] = copy.deepcopy(metadata.get("notes", []))
         context["completeness"] = copy.deepcopy(metadata.get("completeness", {}))
         context["accuracy"] = copy.deepcopy(metadata.get("accuracy", {}))
         context["validation"] = copy.deepcopy(metadata.get("validation", {}))
+        # Also return a new dict for safe usage
+        return {
+            "rating": metadata.get("rating", "PASS"),
+            "review_notes": copy.deepcopy(metadata.get("notes", [])),
+            "completeness": copy.deepcopy(metadata.get("completeness", {})),
+            "accuracy": copy.deepcopy(metadata.get("accuracy", {})),
+            "validation": copy.deepcopy(metadata.get("validation", {})),
+        }
 
 
 class AgentPipeline:
@@ -773,6 +900,13 @@ def run_agent_pipeline(
         # Propagate key data from current result to agent_context for dependent agents
         # DO NOT modify the original context - only update the agent's copy
         if hasattr(agent, "_propagate_to_context"):
-            agent._propagate_to_context(agent_context, result)
+            propagation_result = agent._propagate_to_context(agent_context, result)
+            # Merge propagation result into agent_context (handle None for backward compat)
+            if propagation_result:
+                for key, value in propagation_result.items():
+                    agent_context[key] = value
+
+        # Pass the updated agent_context to the next agent
+        context = agent_context
 
     return results
