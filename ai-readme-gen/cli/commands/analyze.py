@@ -251,8 +251,7 @@ def analyze_and_generate(
     if analysis.get('endpoints'):
         api_docs = generate_api_docs(analysis['endpoints'], analysis.get('agents') if use_agents else None)
 
-    # Step 5: Generate setup instructions
-    generate_setup_instructions(path)
+    # Step 5: Generate setup instructions (result not used - removed)
 
     # Combine all outputs
     output: List[str] = []

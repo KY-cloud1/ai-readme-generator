@@ -120,6 +120,13 @@ def call_anthropic(
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=120)
         response.raise_for_status()
+
+        # Check for 4xx client errors before calling raise_for_status()
+        if response.status_code >= 400 and response.status_code < 500:
+            if response.status_code == 401:
+                raise AuthenticationError("API key is invalid or missing. Please check your API key configuration.")
+            raise APIError(f"Client error: {response.status_code} - {response.text}")
+
         return response.json()
     except requests.exceptions.Timeout:
         raise APIError("Request timed out")
@@ -173,6 +180,13 @@ def call_openai(
     try:
         response = requests.post(url, json=payload, headers=headers, timeout=120)
         response.raise_for_status()
+
+        # Check for 4xx client errors before calling raise_for_status()
+        if response.status_code >= 400 and response.status_code < 500:
+            if response.status_code == 401:
+                raise AuthenticationError("API key is invalid or missing. Please check your API key configuration.")
+            raise APIError(f"Client error: {response.status_code} - {response.text}")
+
         return response.json()
     except requests.exceptions.Timeout:
         raise APIError("Request timed out")
@@ -309,7 +323,10 @@ def stream_ai_response(
             response.raise_for_status()
             for line in response.iter_lines():
                 if line:
-                    data = json.loads(line)
+                    try:
+                        data = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue  # Skip malformed JSON lines
                     if "content" in data:
                         for block in data["content"]:
                             if block.get("type") == "text":

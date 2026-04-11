@@ -51,6 +51,9 @@ def generate_readme(
         response = call_ai_model(messages, AIProvider.ANTHROPIC)
         result = extract_json_response(response)
 
+        if result is None:
+            return generate_basic_readme(codebase_info, metadata)
+
         if result:
             return result.get("readme", str(result))
 
