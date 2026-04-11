@@ -11,6 +11,7 @@ Example usage:
 """
 
 import copy
+import re
 from typing import Dict, Any, List, Optional
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field

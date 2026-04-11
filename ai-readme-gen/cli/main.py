@@ -117,11 +117,8 @@ def analyze(path, output, format, verbose, use_agents):
         click.echo(f"Documentation written to: {output}")
     else:
         # Escape output for safe terminal display
-        from nlwrap import nlwrap
-        # Use nlwrap to properly escape and wrap output for terminal display
-        # This handles special characters and ensures safe terminal rendering
-        escaped_output = "".join(nlwrap(output_content))
-        click.echo(escaped_output, nl=False)
+        # Output directly without nlwrap (functionality moved to analyze.py)
+        click.echo(output_content, nl=False)
 
     return 0
 
@@ -158,8 +155,7 @@ def diagram(path, output, verbose, use_agents):
             f.write(diagram)
         click.echo(f"Diagram written to: {output}")
     else:
-        from nlwrap import nlwrap
-        click.echo("".join(nlwrap(diagram)), nl=False)
+        click.echo(diagram, nl=False)
 
     return 0
 
@@ -199,8 +195,7 @@ def api(path, output, verbose, use_agents):
             f.write(api_docs)
         click.echo(f"API docs written to: {output}")
     else:
-        from nlwrap import nlwrap
-        click.echo("".join(nlwrap(api_docs)), nl=False)
+        click.echo(api_docs, nl=False)
 
     return 0
 
@@ -231,107 +226,6 @@ def setup(path, output):
         click.echo(setup, nl=False)
 
     return 0
-
-
-def analyze_codebase(path: str, use_agents: bool = False) -> Dict[str, Any]:
-    """Analyze a codebase and return structured information.
-
-    Args:
-        path: Path to the codebase root
-        use_agents: Whether to use agent simulation
-
-    Returns:
-        Dictionary containing analysis results
-
-    Raises:
-        FileNotFoundError: If path does not exist
-    """
-    from pathlib import Path
-
-    if not Path(path).exists():
-        raise FileNotFoundError(f"Path does not exist: {path}")
-
-    # Scan codebase
-    codebase_info = scan_codebase(path)
-
-    # Extract metadata
-    metadata = extract_project_metadata(path)
-
-    # Extract API endpoints
-    endpoints = extract_api_endpoints(path)
-
-    # Run agent simulation if enabled
-    agent_results = {}
-    if use_agents:
-        context = {
-            "codebase": codebase_info,
-            "metadata": metadata,
-            "endpoints": endpoints,
-        }
-        agent_results = run_agent_pipeline(context)
-
-    return {"codebase": codebase_info, "metadata": metadata, "endpoints": endpoints, "agents": agent_results}
-
-
-def generate_diagram(codebase_info: Dict[str, Any], analysis: Any) -> str:
-    """Generate an ASCII architecture diagram.
-
-    Args:
-        codebase_info: Codebase information from scanning
-        analysis: Optional analysis results
-
-    Returns:
-        Generated ASCII diagram
-
-    Raises:
-        ValueError: If codebase_info is empty or invalid
-    """
-    from .commands.generate import generate_diagram as _generate
-
-    if not codebase_info:
-        raise ValueError("codebase_info cannot be empty")
-
-    return _generate(codebase_info, analysis)
-
-
-def generate_api_docs(endpoints: Optional[List[Dict[str, Any]]]) -> str:
-    """Generate API documentation from endpoints.
-
-    Args:
-        endpoints: List of API endpoints
-
-    Returns:
-        Generated API documentation
-
-    Raises:
-        ValueError: If endpoints is None or empty
-    """
-    from .commands.generate import generate_api_docs as _generate
-
-    if endpoints is None or len(endpoints) == 0:
-        raise ValueError("endpoints cannot be empty")
-
-    return _generate(endpoints)
-
-
-def generate_setup_instructions(path: str) -> str:
-    """Generate setup instructions for a project.
-
-    Args:
-        path: Path to the project
-
-    Returns:
-        Generated setup instructions
-
-    Raises:
-        FileNotFoundError: If the path does not exist
-    """
-    from .commands.generate import generate_setup_instructions as _generate
-
-    if not os.path.exists(path):
-        raise FileNotFoundError(f"Path does not exist: {path}")
-
-    return _generate(path)
 
 
 if __name__ == "__main__":

@@ -84,7 +84,7 @@ def scan_codebase(path: str) -> Dict[str, Any]:
                 codebase_info["languages"][language]["files"].append(relative_path)
 
                 # Track root-level files
-                if file_path.name == relative_path:
+                if file_path.parent == path:
                     codebase_info["root_files"].append(relative_path)
 
     return codebase_info
@@ -185,9 +185,9 @@ def parse_javascript_file(file_path: str) -> Dict[str, Any]:
         imports.append(f"require('{imp}')")
 
     # Find exports
-    esm_exports = content.findall(r'export\s+(?:default\s+)?(?:function|class|const|let|var|async\s+function)\s+(\w+)')
-    esm_named_exports = content.findall(r'export\s+\{([^}]+)\}\s+from\s+[\'"]([^\'"]+)[\'"]')
-    commonjs_exports = content.findall(r'module\.exports\s*=\s*(\w+)')
+    esm_exports = re.findall(r'export\s+(?:default\s+)?(?:function|class|const|let|var|async\s+function)\s+(\w+)', content)
+    esm_named_exports = re.findall(r'export\s+\{([^}]+)\}\s+from\s+[\'"]([^\'"]+)[\'"]', content)
+    commonjs_exports = re.findall(r'module\.exports\s*=\s*(\w+)', content)
 
     if esm_named_exports:
         exports.extend(esm_named_exports)
