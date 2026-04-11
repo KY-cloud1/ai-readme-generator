@@ -94,8 +94,8 @@ Visit `http://localhost:3000` to access the dashboard.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `AI_PROVIDER` | AI provider (anthropic, openai, local) | anthropic |
-| `AI_MODEL` | Model to use | claude-3-5-sonnet-20240620 |
+| `AI_PROVIDER` | AI provider (anthropic, openai, local) | - |
+| `AI_MODEL` | Model to use | - |
 | `ANTHROPIC_API_KEY` | Anthropic API key | - |
 | `OPENAI_API_KEY` | OpenAI API key | - |
 | `OUTPUT_FORMAT` | Output format (text, json) | text |
@@ -150,19 +150,3 @@ ai-readme-gen/
 │   └── public/
 └── docs/                  # Documentation
 ```
-
-## License
-
-MIT License
-
-## Contributing
-
-Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
-
-## Roadmap
-
-- [ ] Support more languages (Go, Rust, Java)
-- [ ] Interactive documentation editor
-- [ ] Real-time updates as code changes
-- [ ] Export to multiple formats (Markdown, HTML, PDF)
-- [ ] GitHub integration
