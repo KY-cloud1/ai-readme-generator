@@ -1,6 +1,6 @@
 """Prompt templates for AI interactions."""
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 def create_analysis_prompt(codebase_info: Dict[str, Any]) -> str:

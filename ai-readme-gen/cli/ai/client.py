@@ -1,5 +1,6 @@
 """AI API client for interacting with LLM providers."""
 
+import json
 import os
 from typing import Dict, Any, Optional
 from enum import Enum
