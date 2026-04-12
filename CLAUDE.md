@@ -1,6 +1,7 @@
 # Compound Engineering Workflow Rules
 
-This repository uses a structured AI-driven engineering workflow powered by `/ce:*` commands.
+This repository uses a structured AI-driven engineering workflow powered by 
+`/ce:*` commands.
 
 The system operates in stages:
 ideate → brainstorm → plan → work → review → compound
@@ -97,7 +98,8 @@ Commits represent decisions, not progress.
 - Do NOT commit incomplete or broken states
 - Do NOT commit experimental or partial work
 - Do NOT mix unrelated changes in one commit
-- Do NOT user uppercase letters to start the commit message or the commit body message
+- Do NOT user uppercase letters to start the commit message or the commit 
+  body message
 
 #### Commit message format:
 Use conventional commits:
@@ -160,7 +162,10 @@ Claude must NEVER:
 
 # Documented Solutions
 
-`docs/solutions/` — documented solutions to past problems (bugs, best practices, workflow patterns), organized by category with YAML frontmatter (module, tags, problem_type). Relevant when implementing or debugging in documented areas.
+`ai-readme-gen/docs/solutions/` — documented solutions to past problems (bugs, 
+best practices, workflow patterns), organized by category with YAML frontmatter 
+(module, tags, problem_type). Relevant when implementing or debugging in 
+documented areas.
 
 ---
 
