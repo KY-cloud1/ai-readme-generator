@@ -13,9 +13,8 @@ The AI README Generator is a new project with no existing code. It needs to:
 4. Extract API documentation (if applicable)
 5. Provide setup/installation instructions
 
-The project will have two interfaces:
+The project will have one interface:
 - **CLI tool**: Python-based for direct usage
-- **Web GUI**: Next.js + React dashboard
 
 ---
 
@@ -46,39 +45,10 @@ The project will have two interfaces:
   │       ├── __init__.py
   │       ├── client.py        # AI API wrapper
   │       └── prompts.py       # Prompt templates
-  ├── web/                      # Next.js web app
-  │   ├── src/
-  │   ├── package.json
-  │   └── ...
   ├── docs/
   │   └── brainstorms/
   │       └── requirements_ai_readme_generator.md
   └── pyproject.toml
-  ```
-
-#### 1.2 Next.js Web Application
-- Create `web/` directory with Next.js 14+ (App Router)
-- Set up basic structure:
-  ```
-  web/
-  ├── src/
-  │   ├── app/
-  │   │   ├── page.tsx         # Dashboard landing
-  │   │   ├── projects/
-  │   │   │   └── page.tsx    # Project list
-  │   │   ├── new/
-  │   │   │   └── page.tsx    # New project wizard
-  │   │   └── api/
-  │   │       └── analyze/    # API endpoint
-  │   ├── components/
-  │   │   ├── Dashboard.tsx
-  │   │   ├── ProjectCard.tsx
-  │   │   └── Settings.tsx
-  │   └── lib/
-  │       ├── api.ts           # API client
-  │       └── utils.ts
-  ├── package.json
-  └── next.config.js
   ```
 
 ### Phase 2: Core CLI Implementation
@@ -137,41 +107,18 @@ The project will have two interfaces:
 - Extract endpoint definitions from code
 - Generate structured API documentation
 
-### Phase 4: Web GUI Implementation
-
-**Goal**: Create the Next.js dashboard.
-
-#### 4.1 Dashboard Layout
-- Sidebar navigation
-- Project list view
-- Settings panel
-
-#### 4.2 Project Management
-- `POST /api/projects` - Create new project
-- `GET /api/projects` - List all projects
-- `GET /api/projects/:id` - Get project details
-- `POST /api/projects/:id/analyze` - Trigger analysis
-- `GET /api/projects/:id/results` - Get analysis results
-
-#### 4.3 Analysis Interface
-- Project selection
-- Configuration options (AI model, timeout)
-- Progress indicator
-- Results display with copy/download
-
-### Phase 5: Testing & Validation
+### Phase 4: Testing & Validation
 
 **Goal**: Ensure quality and reliability.
 
-#### 5.1 Unit Tests
+#### 4.1 Unit Tests
 - Test codebase analyzers
 - Test prompt templates
 - Test AI client error handling
 
-#### 5.2 Integration Tests
+#### 4.2 Integration Tests
 - Test full analysis pipeline
 - Test CLI command execution
-- Test API endpoints
 
 ### Phase 6: Documentation & Polish
 
@@ -187,8 +134,6 @@ The project will have two interfaces:
 | `cli/analysis/codebase.py` | Codebase traversal logic |
 | `cli/analysis/parser.py` | Language-specific parsing |
 | `cli/ai/client.py` | AI API integration |
-| `web/src/app/page.tsx` | Dashboard landing page |
-| `web/src/app/api/analyze/route.ts` | Analysis API endpoint |
 | `pyproject.toml` | Python project configuration |
 | `web/package.json` | Web app dependencies |
 
@@ -198,17 +143,12 @@ The project will have two interfaces:
 
 1. **Setup verification**:
    - `pip install -e .` succeeds
-   - `npm install` in web/ succeeds
 
 2. **CLI verification**:
    - `ai-readme-gen --help` shows help
    - `ai-readme-gen analyze --path /path/to/repo` runs analysis
 
-3. **Web verification**:
-   - `npm run dev` starts dev server
-   - Dashboard loads and shows project list
-
-4. **End-to-end test**:
+3. **End-to-end test**:
    - Create sample project in temp directory
    - Run CLI analysis
    - Verify generated README.md contains expected sections
@@ -223,10 +163,9 @@ The project will have two interfaces:
 | Phase 1: Setup | 2-3 hours |
 | Phase 2: Core CLI | 4-6 hours |
 | Phase 3: Generation | 3-4 hours |
-| Phase 4: Web GUI | 4-5 hours |
-| Phase 5: Testing | 2-3 hours |
-| Phase 6: Documentation | 1-2 hours |
-| **Total** | **16-23 hours** (~2 days) |
+| Phase 4: Testing | 2-3 hours |
+| Phase 5: Documentation | 1-2 hours |
+| **Total** | **12-18 hours** (~1 day) |
 
 ---
 
@@ -234,6 +173,5 @@ The project will have two interfaces:
 
 - [ ] CLI tool generates README from sample Python project
 - [ ] CLI tool generates ASCII architecture diagram
-- [ ] Web dashboard lists projects and triggers analysis
 - [ ] Generated documentation resembles senior engineer quality
 - [ ] No hallucinated code or files in output
