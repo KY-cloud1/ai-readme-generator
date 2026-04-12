@@ -83,8 +83,8 @@ def scan_codebase(path: str) -> Dict[str, Any]:
                 codebase_info["languages"][language]["count"] += 1
                 codebase_info["languages"][language]["files"].append(relative_path)
 
-                # Track root-level files
-                if file_path.parent.resolve() == path_obj:
+                # Track root-level files (files directly in the project root)
+                if file_path.parent == path_obj:
                     codebase_info["root_files"].append(relative_path)
 
     return codebase_info

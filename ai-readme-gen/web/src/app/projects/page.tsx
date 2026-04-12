@@ -199,10 +199,10 @@ export default function ProjectsPage() {
                       handleAnalyze(project.id);
                       setSelectedProjectId(project.id);
                     }}
-                    disabled={analyzing}
+                    disabled={analyzing || selectedProjectId === project.id}
                     className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                   >
-                    {analyzing ? "Analyzing..." : "Analyze"}
+                    {analyzing ? "Analyzing..." : selectedProjectId === project.id ? "Analyzing..." : "Analyze"}
                   </button>
                 )}
               </div>
