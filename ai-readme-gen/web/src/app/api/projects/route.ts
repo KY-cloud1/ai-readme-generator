@@ -35,12 +35,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(project);
   } catch (error) {
-    if (error instanceof Error && error.message.includes("JSON")) {
+    if (error instanceof SyntaxError) {
       return NextResponse.json(
         { error: "Invalid JSON body" },
         { status: 400 }
       );
     }
+    console.error("Failed to create project:", error);
     return NextResponse.json(
       { error: "Failed to create project" },
       { status: 500 }

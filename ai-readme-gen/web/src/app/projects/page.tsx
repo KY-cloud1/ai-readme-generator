@@ -8,30 +8,32 @@ export default function ProjectsPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [globalError, setGlobalError] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectPath, setNewProjectPath] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [selectedAnalysisResult, setSelectedAnalysisResult] = useState<AnalysisResult | null>(null);
 
   const fetchProjects = async () => {
     try {
       const data = await listProjects();
       setProjects(data);
     } catch (err) {
-      setError("Failed to fetch projects");
+      setGlobalError("Failed to fetch projects");
     }
   };
 
   const handleCreateProject = async () => {
     if (!newProjectName || !newProjectPath) {
-      setError("Please fill in all fields");
+      setCreateError("Please fill in all fields");
       return;
     }
 
     setLoading(true);
-    setError(null);
+    setCreateError(null);
 
     try {
       const project = await createProject(newProjectName, newProjectPath);
@@ -39,7 +41,7 @@ export default function ProjectsPage() {
       setNewProjectName("");
       setNewProjectPath("");
     } catch (err) {
-      setError("Failed to create project");
+      setCreateError("Failed to create project");
     } finally {
       setLoading(false);
     }
@@ -47,7 +49,7 @@ export default function ProjectsPage() {
 
   const handleAnalyze = async (projectId: string) => {
     setAnalyzing(true);
-    setError(null);
+    setAnalyzeError(null);
 
     try {
       const result = await fetch(`${window.location.origin}/api/projects/${projectId}/analyze`, {
@@ -65,9 +67,9 @@ export default function ProjectsPage() {
       }
 
       const data = await result.json();
-      setAnalysisResult(data);
+      setSelectedAnalysisResult(data);
     } catch (err) {
-      setError("Failed to analyze project");
+      setAnalyzeError("Failed to analyze project");
     } finally {
       setAnalyzing(false);
     }
@@ -111,6 +113,11 @@ export default function ProjectsPage() {
         {/* Create Project Form */}
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6 mb-8 border border-gray-200 dark:border-slate-700">
           <h2 className="text-lg font-semibold mb-4">Create New Project</h2>
+          {createError && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-4">
+              <p className="text-red-600 dark:text-red-400 text-sm">{createError}</p>
+            </div>
+          )}
           <div className="grid md:grid-cols-2 gap-4">
             <input
               type="text"
@@ -148,27 +155,13 @@ export default function ProjectsPage() {
         </div>
 
         {/* Projects Grid */}
-        {error && (
+        {globalError && (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
-            <p className="text-red-600 dark:text-red-400">{error}</p>
+            <p className="text-red-600 dark:text-red-400">{globalError}</p>
           </div>
         )}
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* New Project Card */}
-          <div className="bg-white dark:bg-slate-800 rounded-lg shadow p-6 border-2 border-dashed border-gray-300 dark:border-slate-600">
-            <h2 className="text-xl font-semibold mb-2">New Project</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Create a new project to generate documentation
-            </p>
-            <button
-              onClick={() => router.push("/projects/new")}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-            >
-              Create Project
-            </button>
-          </div>
-
           {/* Project List */}
           {projects.map((project) => (
             <div
@@ -202,7 +195,10 @@ export default function ProjectsPage() {
                 </button>
                 {project.status !== "completed" && (
                   <button
-                    onClick={() => handleAnalyze(project.id)}
+                    onClick={() => {
+                      handleAnalyze(project.id);
+                      setSelectedProjectId(project.id);
+                    }}
                     disabled={analyzing}
                     className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                   >
@@ -214,20 +210,20 @@ export default function ProjectsPage() {
           ))}
 
           {/* Results Panel */}
-          {selectedProjectId && analysisResult && (
+          {selectedProjectId && selectedAnalysisResult && (
             <div className="md:col-span-2 lg:col-span-3 bg-white dark:bg-slate-800 rounded-lg shadow p-6 border border-gray-200 dark:border-slate-700">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">Analysis Results</h2>
+                <h2 className="text-lg font-semibold">Analysis Results for {projects.find(p => p.id === selectedProjectId)?.name || "Selected Project"}</h2>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleCopy(analysisResult.readme)}
+                    onClick={() => handleCopy(selectedAnalysisResult.readme)}
                     className="px-3 py-1 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-900 dark:text-white rounded text-sm"
                   >
                     Copy README
                   </button>
                   <button
                     onClick={() =>
-                      handleDownload(analysisResult.readme, "README.md")
+                      handleDownload(selectedAnalysisResult.readme, "README.md")
                     }
                     className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
                   >
@@ -240,34 +236,39 @@ export default function ProjectsPage() {
                 <div>
                   <h3 className="font-medium mb-2">README.md</h3>
                   <pre className="bg-gray-100 dark:bg-slate-900 p-4 rounded-lg text-sm overflow-auto max-h-64">
-                    {analysisResult.readme}
+                    {selectedAnalysisResult.readme}
                   </pre>
                 </div>
                 <div>
                   <h3 className="font-medium mb-2">Architecture Diagram</h3>
                   <pre className="bg-gray-100 dark:bg-slate-900 p-4 rounded-lg text-sm overflow-auto max-h-64">
-                    {analysisResult.diagram}
+                    {selectedAnalysisResult.diagram}
                   </pre>
                 </div>
               </div>
 
-              {analysisResult.apiDocs && (
+              {selectedAnalysisResult.apiDocs && (
                 <div className="mt-6">
                   <h3 className="font-medium mb-2">API Documentation</h3>
                   <pre className="bg-gray-100 dark:bg-slate-900 p-4 rounded-lg text-sm overflow-auto max-h-48">
-                    {analysisResult.apiDocs}
+                    {selectedAnalysisResult.apiDocs}
                   </pre>
                 </div>
               )}
 
-              {analysisResult.setup && (
+              {selectedAnalysisResult.setup && (
                 <div className="mt-6">
                   <h3 className="font-medium mb-2">Setup Instructions</h3>
                   <pre className="bg-gray-100 dark:bg-slate-900 p-4 rounded-lg text-sm overflow-auto max-h-48">
-                    {analysisResult.setup}
+                    {selectedAnalysisResult.setup}
                   </pre>
                 </div>
               )}
+            </div>
+          )}
+          {analyzeError && (
+            <div className="md:col-span-2 lg:col-span-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+              <p className="text-red-600 dark:text-red-400">{analyzeError}</p>
             </div>
           )}
         </div>

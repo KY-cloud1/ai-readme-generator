@@ -7,6 +7,15 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Validate Content-Type header
+    const contentType = request.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      return NextResponse.json(
+        { error: "Content-Type must be application/json" },
+        { status: 400 }
+      );
+    }
+
     // Call backend CLI for results
     const response = await fetch(`${BACKEND_URL}/results/${params.id}`, {
       method: "GET",

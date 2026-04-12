@@ -1,17 +1,78 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+interface SettingsState {
+  apiKey: string;
+  timeout: number;
+  model: string;
+  autoDownload: boolean;
+}
+
+const defaultSettings: SettingsState = {
+  apiKey: "",
+  timeout: 300,
+  model: "claude-3-5-sonnet-20240620",
+  autoDownload: true,
+};
 
 export default function Settings() {
   const [apiKey, setApiKey] = useState("");
   const [timeout, setTimeout] = useState(300);
   const [model, setModel] = useState("claude-3-5-sonnet-20240620");
   const [autoDownload, setAutoDownload] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const handleSave = () => {
-    // TODO: Save settings to localStorage or backend
-    console.log("Settings saved:", { apiKey, timeout, model, autoDownload });
-    alert("Settings saved!");
+  useEffect(() => {
+    const saved = localStorage.getItem("settings");
+    if (saved) {
+      try {
+        const parsed: SettingsState = JSON.parse(saved);
+        setApiKey(parsed.apiKey || "");
+        setTimeout(parsed.timeout || 300);
+        setModel(parsed.model || defaultSettings.model);
+        setAutoDownload(parsed.autoDownload !== false);
+      } catch {
+        console.error("Failed to parse saved settings");
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (saveSuccess) {
+      const timer = setTimeout(() => setSaveSuccess(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [saveSuccess]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError(null);
+
+    const settings: SettingsState = { apiKey, timeout, model, autoDownload };
+
+    try {
+      const response = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save settings");
+      }
+
+      localStorage.setItem("settings", JSON.stringify(settings));
+      setSaveSuccess(true);
+    } catch (error) {
+      setSaveError("Failed to save settings. Storing locally.");
+      localStorage.setItem("settings", JSON.stringify(settings));
+      setSaveSuccess(true);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleReset = () => {
@@ -44,7 +105,7 @@ export default function Settings() {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Your API key is stored locally and never sent to our servers.
+                  Your API key is stored securely and used to authenticate with AI services.
                 </p>
               </div>
             </div>
