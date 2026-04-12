@@ -2,23 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
 
   const navItems = [
     {
       href: "/",
       label: "Dashboard",
       icon: (
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -32,12 +25,7 @@ export default function Sidebar() {
       href: "/projects",
       label: "Projects",
       icon: (
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -51,12 +39,7 @@ export default function Sidebar() {
       href: "/settings",
       label: "Settings",
       icon: (
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -74,10 +57,6 @@ export default function Sidebar() {
     },
   ];
 
-  const handleLogout = async () => {
-    await logout();
-  };
-
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700">
       <div className="flex items-center justify-center h-16 border-b border-gray-200 dark:border-slate-700">
@@ -85,6 +64,7 @@ export default function Sidebar() {
           AI README Generator
         </h1>
       </div>
+
       <nav className="mt-6 px-3">
         {navItems.map((item) => (
           <Link
@@ -101,47 +81,11 @@ export default function Sidebar() {
           </Link>
         ))}
       </nav>
+
       <div className="absolute bottom-0 w-full p-4 border-t border-gray-200 dark:border-slate-700">
-        {user ? (
-          <div className="flex items-center">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-medium">
-              {user.name?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {user.name || user.email}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                <button
-                  onClick={handleLogout}
-                  className="hover:text-red-500 dark:hover:text-red-400"
-                >
-                  Sign out
-                </button>
-              </p>
-            </div>
-          </div>
-        ) : (
-          <Link
-            href="/login"
-            className="flex items-center px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <svg
-              className="w-5 h-5 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
-              />
-            </svg>
-            Login
-          </Link>
-        )}
+        <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+          Local Mode • No Authentication
+        </p>
       </div>
     </aside>
   );

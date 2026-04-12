@@ -1,125 +1,110 @@
-import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
-import { PrismaClient } from '@prisma/client';
+import { describe, test, expect, beforeEach } from '@jest/globals';
+import { getSettings, saveSettings, updateSetting } from '../src/app/api/settings/storage';
 
-const prisma = new PrismaClient();
+describe('Settings (localStorage)', () => {
+  let mockStorage: Record<string, string>;
 
-describe('Settings', () => {
-  let userId: string;
-  const defaultSettings = {
-    apiKey: '',
-    timeout: 300,
-    model: 'claude-3-5-sonnet-20240620',
-    autoDownload: true,
-  };
-
-  beforeAll(async () => {
-    // Create a test user
-    const user = await prisma.user.create({
-      data: {
-        email: 'settings-test@example.com',
-        password: 'Test123456',
-        name: 'Settings Test User',
+  beforeEach(() => {
+    mockStorage = {};
+    localStorage.clear();
+    delete (global as any).localStorage;
+    Object.defineProperty(global, 'localStorage', {
+      value: {
+        getItem: jest.fn((key: string) => mockStorage[key] || null),
+        setItem: jest.fn((key: string, value: string) => {
+          mockStorage[key] = value;
+        }),
+        removeItem: jest.fn((key: string) => {
+          delete mockStorage[key];
+        }),
+        clear: jest.fn(() => {
+          Object.keys(mockStorage).forEach((key) => delete mockStorage[key]);
+        }),
       },
+      writable: true,
     });
-    userId = user.id;
   });
 
-  afterAll(async () => {
-    // Clean up test data
-    await prisma.settings.deleteMany({
-      where: { userId },
-    });
-
-    await prisma.user.deleteMany({
-      where: { email: 'settings-test@example.com' },
-    });
-
-    await prisma.$disconnect();
+  test('should return default settings if none exist', () => {
+    const settings = getSettings();
+    expect(settings.apiKey).toBe('');
+    expect(settings.timeout).toBe(300);
+    expect(settings.model).toBe('claude-3-5-sonnet-20240620');
+    expect(settings.autoDownload).toBe(true);
   });
 
-  test('should create default settings for new user', async () => {
-    const settings = await prisma.settings.findUnique({
-      where: { userId },
-    });
-
-    expect(settings).toBeDefined();
-    expect(settings?.apiKey).toBe(defaultSettings.apiKey);
-    expect(settings?.timeout).toBe(defaultSettings.timeout);
-    expect(settings?.model).toBe(defaultSettings.model);
-    expect(settings?.autoDownload).toBe(defaultSettings.autoDownload);
-  });
-
-  test('should update settings', async () => {
-    const newSettings = {
-      apiKey: 'test-api-key-123',
+  test('should return saved settings', () => {
+    const testSettings = {
+      apiKey: 'test-key-123',
       timeout: 600,
       model: 'claude-3-opus-20240229',
       autoDownload: false,
     };
+    localStorage.setItem('ai-readme-gen-settings', JSON.stringify(testSettings));
 
-    const updated = await prisma.settings.upsert({
-      where: { userId },
-      update: newSettings,
-      create: {
-        userId,
-        apiKey: newSettings.apiKey,
-        timeout: newSettings.timeout,
-        model: newSettings.model,
-        autoDownload: newSettings.autoDownload,
-      },
-    });
-
-    expect(updated.apiKey).toBe(newSettings.apiKey);
-    expect(updated.timeout).toBe(newSettings.timeout);
-    expect(updated.model).toBe(newSettings.model);
-    expect(updated.autoDownload).toBe(newSettings.autoDownload);
+    const settings = getSettings();
+    expect(settings.apiKey).toBe('test-key-123');
+    expect(settings.timeout).toBe(600);
+    expect(settings.model).toBe('claude-3-opus-20240229');
+    expect(settings.autoDownload).toBe(false);
   });
 
-  test('should update individual settings', async () => {
-    await prisma.settings.upsert({
-      where: { userId },
-      update: { apiKey: 'initial-key' },
-      create: {
-        userId,
-        apiKey: 'initial-key',
-        timeout: 300,
-        model: 'claude-3-5-sonnet-20240620',
-        autoDownload: true,
-      },
-    });
+  test('should save settings', () => {
+    const newSettings = {
+      apiKey: 'new-api-key',
+      timeout: 450,
+      model: 'claude-3-sonnet-20240229',
+      autoDownload: true,
+    };
+    saveSettings(newSettings);
 
-    await prisma.settings.update({
-      where: { userId },
-      data: { timeout: 450 },
-    });
-
-    const settings = await prisma.settings.findUnique({
-      where: { userId },
-    });
-
-    expect(settings?.timeout).toBe(450);
-    expect(settings?.apiKey).toBe('initial-key');
+    const saved = getSettings();
+    expect(saved.apiKey).toBe('new-api-key');
+    expect(saved.timeout).toBe(450);
+    expect(saved.model).toBe('claude-3-sonnet-20240229');
+    expect(saved.autoDownload).toBe(true);
   });
 
-  test('should have unique settings per user', async () => {
-    const user2 = await prisma.user.create({
-      data: {
-        email: 'settings-test-2@example.com',
-        password: 'Test123456',
-        name: 'Settings Test User 2',
-      },
-    });
+  test('should update single setting', () => {
+    const initialSettings = {
+      apiKey: 'initial-key',
+      timeout: 300,
+      model: 'claude-3-5-sonnet-20240620',
+      autoDownload: true,
+    };
+    localStorage.setItem('ai-readme-gen-settings', JSON.stringify(initialSettings));
 
-    const settings1 = await prisma.settings.findUnique({
-      where: { userId },
-    });
+    updateSetting('timeout', 500);
 
-    const settings2 = await prisma.settings.findUnique({
-      where: { userId: user2.id },
-    });
+    const updated = getSettings();
+    expect(updated.timeout).toBe(500);
+    expect(updated.apiKey).toBe('initial-key');
+  });
 
-    expect(settings1).toBeDefined();
-    expect(settings2).toBeDefined();
-    expect(settings1?.userId).not.toBe(settings2?.userId);
+  test('should persist data across sessions', () => {
+    const testSettings = {
+      apiKey: 'persistent-key',
+      timeout: 400,
+      model: 'claude-3-haiku-20240307',
+      autoDownload: false,
+    };
+    localStorage.setItem('ai-readme-gen-settings', JSON.stringify(testSettings));
+
+    // Simulate new session
+    localStorage.clear();
+    localStorage.setItem('ai-readme-gen-settings', JSON.stringify(testSettings));
+
+    const settings = getSettings();
+    expect(settings.apiKey).toBe('persistent-key');
+    expect(settings.timeout).toBe(400);
+  });
+
+  test('should handle invalid JSON gracefully', () => {
+    localStorage.setItem('ai-readme-gen-settings', 'invalid json');
+
+    const settings = getSettings();
+    // Should return defaults
+    expect(settings.apiKey).toBe('');
+    expect(settings.timeout).toBe(300);
   });
 });

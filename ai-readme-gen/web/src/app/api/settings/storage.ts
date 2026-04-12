@@ -1,69 +1,59 @@
-import { PrismaClient } from '@prisma/client';
+/**
+ * LocalStorage-based settings storage for ai-readme-gen
+ * No authentication required - all data stored locally in browser
+ */
 
-const prisma = new PrismaClient();
-
-export interface Settings {
-  id: string;
-  userId: string;
+interface Settings {
   apiKey: string;
   timeout: number;
   model: string;
   autoDownload: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
-/**
- * Get settings for a user
- */
-export async function getSettings(userId: string): Promise<Settings> {
-  const settings = await prisma.settings.findUnique({
-    where: { userId },
-  });
+const STORAGE_KEY = "ai-readme-gen-settings";
 
-  if (!settings) {
-    // Create default settings if they don't exist
-    return await prisma.settings.create({
-      data: {
-        userId,
-        apiKey: '',
-        timeout: 300,
-        model: 'claude-3-5-sonnet-20240620',
-        autoDownload: true,
-      },
-    });
+const defaultSettings: Settings = {
+  apiKey: "",
+  timeout: 300,
+  model: "claude-3-5-sonnet-20240620",
+  autoDownload: true,
+};
+
+/**
+ * Get settings (returns default if none exist)
+ */
+export function getSettings(): Settings {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (!data) {
+      return defaultSettings;
+    }
+    return JSON.parse(data);
+  } catch {
+    return defaultSettings;
   }
-
-  return settings;
 }
 
 /**
- * Save settings for a user
+ * Save full settings object
  */
-export async function saveSettings(userId: string, settings: Partial<Settings>): Promise<Settings> {
-  return prisma.settings.upsert({
-    where: { userId },
-    update: settings,
-    create: {
-      userId,
-      apiKey: settings.apiKey || '',
-      timeout: settings.timeout ?? 300,
-      model: settings.model || 'claude-3-5-sonnet-20240620',
-      autoDownload: settings.autoDownload ?? true,
-    },
-  });
+export function saveSettings(data: Partial<Settings>): void {
+  const current = getSettings();
+  const updated = {
+    ...current,
+    ...data,
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 }
 
 /**
- * Update a specific setting for a user
+ * Update single setting field
  */
-export async function updateSetting<K extends keyof Settings>(
-  userId: string,
+export function updateSetting<K extends keyof Settings>(
   key: K,
   value: Settings[K]
-): Promise<void> {
-  await prisma.settings.update({
-    where: { userId },
-    data: { [key]: value },
-  });
+): void {
+  const settings = getSettings();
+  settings[key] = value;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 }

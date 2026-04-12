@@ -1,22 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth';
 import { getProject, updateProject } from '../storage';
 
+// GET project (public)
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      );
-    }
-
-    const project = await getProject(params.id, session.userId);
+    const project = await getProject(params.id);
 
     if (!project) {
       return NextResponse.json(
@@ -28,6 +19,7 @@ export async function GET(
     return NextResponse.json(project);
   } catch (error) {
     console.error('Failed to get project:', error);
+
     return NextResponse.json(
       { error: 'Failed to get project' },
       { status: 500 }
@@ -35,22 +27,14 @@ export async function GET(
   }
 }
 
+// UPDATE project (public)
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getSessionUser();
-
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      );
-    }
-
-    // Validate content-type header
     const contentType = request.headers.get('content-type');
+
     if (!contentType || !contentType.includes('application/json')) {
       return NextResponse.json(
         { error: 'Content-Type must be application/json' },
@@ -60,7 +44,7 @@ export async function PUT(
 
     const body = await request.json();
 
-    const project = await getProject(params.id, session.userId);
+    const project = await getProject(params.id);
 
     if (!project) {
       return NextResponse.json(
@@ -69,7 +53,7 @@ export async function PUT(
       );
     }
 
-    const updatedProject = await updateProject(params.id, body, session.userId);
+    const updatedProject = await updateProject(params.id, body);
 
     if (!updatedProject) {
       return NextResponse.json(
@@ -81,6 +65,7 @@ export async function PUT(
     return NextResponse.json(updatedProject);
   } catch (error) {
     console.error('Failed to update project:', error);
+
     return NextResponse.json(
       { error: 'Failed to update project' },
       { status: 500 }
