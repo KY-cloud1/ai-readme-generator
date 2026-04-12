@@ -1,20 +1,25 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
+import { getSessionUser } from '@/lib/auth';
+import { getSettings } from './storage';
 
 export async function GET() {
   try {
-    // Retrieve settings from cookie
-    const cookies = NextRequest.cookies();
-    const settingsCookie = cookies.get("settings");
+    const session = await getSessionUser();
 
-    if (settingsCookie && settingsCookie.value) {
-      return NextResponse.json(JSON.parse(settingsCookie.value));
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      );
     }
 
-    return NextResponse.json({});
+    const settings = await getSettings(session.userId);
+
+    return NextResponse.json(settings);
   } catch (error) {
-    console.error("Failed to retrieve settings:", error);
+    console.error('Failed to retrieve settings:', error);
     return NextResponse.json(
-      { error: "Failed to retrieve settings" },
+      { error: 'Failed to retrieve settings' },
       { status: 500 }
     );
   }
