@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Project } from "@/lib/api";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,8 +24,8 @@ export async function POST(request: NextRequest) {
 
     // TODO: Create project and store in database
     // For now, return a mock project
-    const project = {
-      id: "1",
+    const project: Project = {
+      id: (Math.random() * 10000).toString(),
       name,
       path,
       createdAt: new Date().toISOString(),
@@ -49,5 +50,17 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   // TODO: List projects from database
-  return NextResponse.json([]);
+  // For now, return mock projects
+  const projects: Project[] = [
+    {
+      id: "1",
+      name: "Sample Python Project",
+      path: "/path/to/sample",
+      createdAt: new Date(Date.now() - 86400000).toISOString(),
+      updatedAt: new Date(Date.now() - 3600000).toISOString(),
+      status: "completed",
+    },
+  ];
+
+  return NextResponse.json(projects);
 }

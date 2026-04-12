@@ -86,3 +86,13 @@ export async function getProject(projectId: string): Promise<Project | null> {
 
   return response.json();
 }
+
+export async function getProjectResults(projectId: string): Promise<AnalysisResult> {
+  const response = await fetch(`${API_BASE_URL}/api/projects/${projectId}/results`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch project results: ${response.statusText}`);
+  }
+
+  return response.json();
+}
