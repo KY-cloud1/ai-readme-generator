@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from '@jest/globals';
+import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 import { createProject, getAllProjects } from '../src/app/api/projects/storage';
 
 describe('API Integration', () => {
