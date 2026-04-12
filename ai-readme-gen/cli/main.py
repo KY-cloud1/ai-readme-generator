@@ -5,8 +5,9 @@ import os
 from typing import Any, Dict, Optional
 
 import click
-from .commands.analyze import analyze_and_generate, format_analysis
+from .commands.analyze import analyze_and_generate, format_analysis, analyze_codebase
 from .commands.config import get_config, validate_config
+from .commands.generate import generate_diagram, generate_api_docs, generate_setup_instructions
 
 
 def set_model_option(ctx: Any, param: Any, value: Optional[str]) -> Optional[str]:
@@ -138,7 +139,7 @@ def diagram(path, output, verbose, use_agents):
         if not analysis:
             click.echo("Error: Failed to analyze codebase", err=True)
             return 1
-        diagram = generate_diagram(analysis['codebase'], analysis.get('agents', {}).get('Architect') or analysis)
+        diagram = generate_diagram(analysis['codebase'], analysis.get('agents', {}).get('Architect'), analysis.get('agents'))
     except FileNotFoundError as e:
         click.echo(f"Error: {e}", err=True)
         return 2
@@ -175,7 +176,7 @@ def api(path, output, verbose, use_agents):
         if not analysis:
             click.echo("Error: Failed to analyze codebase", err=True)
             return 1
-        api_docs = generate_api_docs(analysis.get('endpoints', []))
+        api_docs = generate_api_docs(analysis.get('endpoints', []), analysis.get('agents'))
     except FileNotFoundError as e:
         click.echo(f"Error: {e}", err=True)
         return 2
