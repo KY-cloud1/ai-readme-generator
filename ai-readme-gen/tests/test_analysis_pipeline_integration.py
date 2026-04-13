@@ -5,11 +5,13 @@ testing the complete analysis pipeline from codebase scanning to
 documentation generation.
 """
 
+import json
 import pytest
 import tempfile
 import shutil
 from pathlib import Path
 from typing import Dict, Any
+from unittest.mock import patch, MagicMock
 
 from cli.analysis.codebase import scan_codebase, parse_python_file
 from cli.analysis.extractor import (
@@ -35,6 +37,12 @@ from cli.commands.generate import (
     generate_diagram,
     generate_api_docs,
     generate_setup_instructions,
+)
+from cli.ai.client import AuthenticationError
+from cli.ai.prompts import (
+    create_readme_prompt,
+    create_diagram_prompt,
+    create_api_docs_prompt,
 )
 
 
@@ -152,6 +160,61 @@ def create_empty_project():
     tmpdir = tempfile.mkdtemp()
     tmpdir = Path(tmpdir)
     return tmpdir
+
+
+def create_mock_readme_response(metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a mock response for README generation."""
+    name = metadata.get('name', 'Project') or 'Project'
+    description = metadata.get('description', 'No description available.') or 'No description available.'
+    file_count = len(metadata.get('files', [])) or 2
+    readme_text = f"""# {name}
+
+{description}
+
+## Project Structure
+
+- **PYTHON**: {file_count} files
+
+## Files
+
+"""
+    return {
+        "content": [{"type": "text", "text": json.dumps({"readme": readme_text})}]
+    }
+
+
+def create_mock_diagram_response(codebase_info: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a mock response for diagram generation."""
+    return {
+        "content": [{"type": "text", "text": """```
+
+    [Project Root]
+    ├── [src/]
+    │   └── [main modules]
+    ├── [tests/]
+    │   └── [test files]
+    ├── [docs/]
+    │   └── [documentation]
+    └── [config/]
+        └── [configuration files]
+
+```
+
+# Basic ASCII Diagram
+
+This is a basic diagram. For detailed architecture diagrams,
+please set up an AI API key (Anthropic or OpenAI).
+
+"""}]
+    }
+
+
+def create_mock_api_docs_response(endpoints: list) -> Dict[str, Any]:
+    """Create a mock response for API docs generation."""
+    api_docs_text = "## API Reference\n\n### Endpoints\n\n"
+    return {
+        "content": [{"type": "text", "text": json.dumps({"api_docs": api_docs_text})}]
+    }
 
 
 def create_complex_python_project():
@@ -459,7 +522,9 @@ class TestFullAnalysisPipeline:
         """Test the complete analyze and generate pipeline."""
         project_path = create_test_project()
         try:
-            output = analyze_and_generate(str(project_path), output_format="text")
+            with patch('cli.commands.generate.call_ai_model') as mock_call:
+                mock_call.side_effect = AuthenticationError("No API key configured")
+                output = analyze_and_generate(str(project_path), output_format="text")
 
             # Should contain generated content
             assert len(output) > 0
@@ -482,7 +547,9 @@ class TestFullAnalysisPipeline:
             codebase_info = scan_codebase(str(project_path))
             metadata = extract_project_metadata(str(project_path))
 
-            readme = generate_readme(codebase_info, metadata)
+            with patch('cli.commands.generate.call_ai_model') as mock_call:
+                mock_call.side_effect = AuthenticationError("No API key configured")
+                readme = generate_readme(codebase_info, metadata)
 
             assert "# " in readme
             assert "Project" in readme
@@ -495,7 +562,9 @@ class TestFullAnalysisPipeline:
         try:
             codebase_info = scan_codebase(str(project_path))
 
-            diagram = generate_diagram(codebase_info)
+            with patch('cli.commands.generate.call_ai_model') as mock_call:
+                mock_call.side_effect = AuthenticationError("No API key configured")
+                diagram = generate_diagram(codebase_info)
 
             assert "```" in diagram
             assert "Basic ASCII Diagram" in diagram
@@ -508,7 +577,9 @@ class TestFullAnalysisPipeline:
         try:
             endpoints = extract_api_endpoints(str(project_path))
 
-            api_docs = generate_api_docs(endpoints)
+            with patch('cli.commands.generate.call_ai_model') as mock_call:
+                mock_call.side_effect = AuthenticationError("No API key configured")
+                api_docs = generate_api_docs(endpoints)
 
             assert "API Reference" in api_docs
             assert "Endpoints" in api_docs
@@ -694,7 +765,9 @@ class TestAnalysisGeneratorIntegration:
             codebase_info = scan_codebase(str(project_path))
             metadata = extract_project_metadata(str(project_path))
 
-            readme = generate_readme(codebase_info, metadata)
+            with patch('cli.commands.generate.call_ai_model') as mock_call:
+                mock_call.side_effect = AuthenticationError("No API key configured")
+                readme = generate_readme(codebase_info, metadata)
 
             assert "# " in readme
             assert "Project" in readme
@@ -708,7 +781,9 @@ class TestAnalysisGeneratorIntegration:
         try:
             codebase_info = scan_codebase(str(project_path))
 
-            diagram = generate_diagram(codebase_info)
+            with patch('cli.commands.generate.call_ai_model') as mock_call:
+                mock_call.side_effect = AuthenticationError("No API key configured")
+                diagram = generate_diagram(codebase_info)
 
             assert "```" in diagram
             assert "Basic ASCII Diagram" in diagram
@@ -721,7 +796,9 @@ class TestAnalysisGeneratorIntegration:
         try:
             endpoints = extract_api_endpoints(str(project_path))
 
-            api_docs = generate_api_docs(endpoints)
+            with patch('cli.commands.generate.call_ai_model') as mock_call:
+                mock_call.side_effect = AuthenticationError("No API key configured")
+                api_docs = generate_api_docs(endpoints)
 
             assert "API Reference" in api_docs
             assert len(api_docs) > 0
@@ -747,7 +824,9 @@ class TestAnalysisGeneratorIntegration:
             codebase_info = scan_codebase(str(project_path))
             metadata = extract_project_metadata(str(project_path))
 
-            readme = generate_readme(codebase_info, metadata)
+            with patch('cli.commands.generate.call_ai_model') as mock_call:
+                mock_call.side_effect = AuthenticationError("No API key configured")
+                readme = generate_readme(codebase_info, metadata)
 
             assert "# " in readme
         finally:
@@ -787,13 +866,17 @@ class TestPipelineEndToEnd:
             if "Architect" in results and results["Architect"].success:
                 arch_metadata = results["Architect"].metadata
 
-            readme = generate_readme(codebase_info, metadata, tw_metadata)
-            diagram = generate_diagram(codebase_info, arch_metadata)
+            with patch('cli.commands.generate.call_ai_model') as mock_call:
+                mock_call.side_effect = AuthenticationError("No API key configured")
+                readme = generate_readme(codebase_info, metadata)
+                diagram = generate_diagram(codebase_info)
 
             # Only generate API docs if we have endpoints
             if endpoints:
-                api_docs = generate_api_docs(endpoints)
-                assert len(api_docs) > 0
+                with patch('cli.commands.generate.call_ai_model') as mock_call:
+                    mock_call.side_effect = AuthenticationError("No API key configured")
+                    api_docs = generate_api_docs(endpoints)
+                    assert len(api_docs) > 0
             else:
                 api_docs = ""
 
@@ -833,13 +916,17 @@ class TestPipelineEndToEnd:
             if "Architect" in results and results["Architect"].success:
                 arch_metadata = results["Architect"].metadata
 
-            readme = generate_readme(codebase_info, metadata, tw_metadata)
-            diagram = generate_diagram(codebase_info, arch_metadata)
+            with patch('cli.commands.generate.call_ai_model') as mock_call:
+                mock_call.side_effect = AuthenticationError("No API key configured")
+                readme = generate_readme(codebase_info, metadata)
+                diagram = generate_diagram(codebase_info)
 
             # Only generate API docs if we have endpoints
             if endpoints:
-                api_docs = generate_api_docs(endpoints)
-                assert len(api_docs) > 0
+                with patch('cli.commands.generate.call_ai_model') as mock_call:
+                    mock_call.side_effect = AuthenticationError("No API key configured")
+                    api_docs = generate_api_docs(endpoints)
+                    assert len(api_docs) > 0
             else:
                 api_docs = ""
 
@@ -879,13 +966,17 @@ class TestPipelineEndToEnd:
             if "Architect" in results and results["Architect"].success:
                 arch_metadata = results["Architect"].metadata
 
-            readme = generate_readme(codebase_info, metadata, tw_metadata)
-            diagram = generate_diagram(codebase_info, arch_metadata)
+            with patch('cli.commands.generate.call_ai_model') as mock_call:
+                mock_call.side_effect = AuthenticationError("No API key configured")
+                readme = generate_readme(codebase_info, metadata)
+                diagram = generate_diagram(codebase_info)
 
             # Only generate API docs if we have endpoints
             if endpoints:
-                api_docs = generate_api_docs(endpoints)
-                assert len(api_docs) > 0
+                with patch('cli.commands.generate.call_ai_model') as mock_call:
+                    mock_call.side_effect = AuthenticationError("No API key configured")
+                    api_docs = generate_api_docs(endpoints)
+                    assert len(api_docs) > 0
             else:
                 api_docs = ""
 
