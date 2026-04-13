@@ -22,7 +22,7 @@ The project will have one interface:
 
 ### Phase 1: Project Setup & Scaffolding
 
-**Goal**: Create the monorepo structure with both CLI and web applications.
+**Goal**: Create the monorepo structure with CLI.
 
 #### 1.1 Python CLI Application
 - Create `cli/` directory with Click-based CLI
@@ -120,7 +120,7 @@ The project will have one interface:
 - Test full analysis pipeline
 - Test CLI command execution
 
-### Phase 6: Documentation & Polish
+### Phase 5: Documentation & Polish
 
 **Goal**: Complete the project with documentation and final touches.
 
@@ -135,7 +135,6 @@ The project will have one interface:
 | `cli/analysis/parser.py` | Language-specific parsing |
 | `cli/ai/client.py` | AI API integration |
 | `pyproject.toml` | Python project configuration |
-| `web/package.json` | Web app dependencies |
 
 ---
 
