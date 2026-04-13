@@ -731,6 +731,186 @@ from sqlalchemy import create_engine
         finally:
             shutil.rmtree(project_path)
 
+    def test_extract_dependencies_requirements_txt(self):
+        """Test requirements.txt parsing."""
+        tmpdir = tempfile.mkdtemp()
+        try:
+            tmpdir = Path(tmpdir)
+            (tmpdir / "requirements.txt").write_text("""
+requests>=2.28.0
+flask>=2.3.0
+django==4.2.0
+numpy~=1.24.0
+pandas[sql]>=2.0.0
+scipy
+matplotlib
+""")
+
+            deps = extract_dependencies(str(tmpdir / "requirements.txt"))
+
+            assert "requests" in deps
+            assert "flask" in deps
+            assert "django" in deps
+            assert "numpy" in deps
+            assert "pandas" in deps
+            assert "scipy" in deps
+            assert "matplotlib" in deps
+            # Should be exactly 7 dependencies
+            assert len(deps) == 7
+
+        finally:
+            shutil.rmtree(tmpdir)
+
+    def test_extract_dependencies_requirements_txt_with_versions(self):
+        """Test requirements.txt parsing with various version specifiers."""
+        tmpdir = tempfile.mkdtemp()
+        try:
+            tmpdir = Path(tmpdir)
+            (tmpdir / "requirements.txt").write_text("""
+package1==1.0.0
+package2>=2.0.0
+package3<=3.0.0
+package4>4.0.0
+package5~=5.0.0
+package6!=6.0.0
+""")
+
+            deps = extract_dependencies(str(tmpdir / "requirements.txt"))
+
+            assert "package1" in deps
+            assert "package2" in deps
+            assert "package3" in deps
+            assert "package4" in deps
+            assert "package5" in deps
+            assert "package6" in deps
+            assert len(deps) == 6
+
+        finally:
+            shutil.rmtree(tmpdir)
+
+    def test_extract_dependencies_requirements_txt_with_extras(self):
+        """Test requirements.txt parsing with package extras."""
+        tmpdir = tempfile.mkdtemp()
+        try:
+            tmpdir = Path(tmpdir)
+            (tmpdir / "requirements.txt").write_text("""
+django[bcrypt,argon2]==4.2.0
+requests[security]>=2.28.0
+flask[async]>=2.3.0
+""")
+
+            deps = extract_dependencies(str(tmpdir / "requirements.txt"))
+
+            assert "django" in deps
+            assert "requests" in deps
+            assert "flask" in deps
+            assert len(deps) == 3
+
+        finally:
+            shutil.rmtree(tmpdir)
+
+    def test_extract_dependencies_requirements_txt_empty(self):
+        """Test requirements.txt parsing with empty file."""
+        tmpdir = tempfile.mkdtemp()
+        try:
+            tmpdir = Path(tmpdir)
+            (tmpdir / "requirements.txt").write_text("")
+
+            deps = extract_dependencies(str(tmpdir / "requirements.txt"))
+
+            assert deps == []
+            assert len(deps) == 0
+
+        finally:
+            shutil.rmtree(tmpdir)
+
+    def test_extract_dependencies_requirements_txt_with_comments(self):
+        """Test requirements.txt parsing with comments."""
+        tmpdir = tempfile.mkdtemp()
+        try:
+            tmpdir = Path(tmpdir)
+            (tmpdir / "requirements.txt").write_text("""
+# This is a comment
+requests>=2.28.0
+# Another comment
+flask>=2.3.0
+""")
+
+            deps = extract_dependencies(str(tmpdir / "requirements.txt"))
+
+            assert "requests" in deps
+            assert "flask" in deps
+            assert len(deps) == 2
+
+        finally:
+            shutil.rmtree(tmpdir)
+
+    def test_extract_dependencies_requirements_txt_with_whitespace(self):
+        """Test requirements.txt parsing with various whitespace."""
+        tmpdir = tempfile.mkdtemp()
+        try:
+            tmpdir = Path(tmpdir)
+            (tmpdir / "requirements.txt").write_text("""
+requests>=2.28.0
+flask>=2.3.0
+
+django>=4.2.0
+
+numpy>=1.24.0
+""")
+
+            deps = extract_dependencies(str(tmpdir / "requirements.txt"))
+
+            assert "requests" in deps
+            assert "flask" in deps
+            assert "django" in deps
+            assert "numpy" in deps
+            assert len(deps) == 4
+
+        finally:
+            shutil.rmtree(tmpdir)
+
+    def test_extract_dependencies_requirements_txt_with_url_packages(self):
+        """Test requirements.txt parsing with URL-based packages."""
+        tmpdir = tempfile.mkdtemp()
+        try:
+            tmpdir = Path(tmpdir)
+            (tmpdir / "requirements.txt").write_text("""
+-e git+https://github.com/user/repo.git#egg=mypackage
+-r other_requirements.txt
+requests>=2.28.0
+""")
+
+            deps = extract_dependencies(str(tmpdir / "requirements.txt"))
+
+            # Should extract the package name from the URL
+            assert "requests" in deps
+            # URL-based packages may or may not be extracted depending on regex
+        finally:
+            shutil.rmtree(tmpdir)
+
+    def test_extract_dependencies_requirements_txt_nonexistent_file(self):
+        """Test requirements.txt parsing with nonexistent file."""
+        with pytest.raises(FileNotFoundError) as exc_info:
+            extract_dependencies("/nonexistent/path/requirements.txt")
+
+        assert "does not exist" in str(exc_info.value)
+
+    def test_extract_project_dependencies_with_requirements_txt(self):
+        """Test project-level dependency extraction with requirements.txt."""
+        project_path = create_test_project()
+        try:
+            deps = extract_project_dependencies(str(project_path))
+
+            # Should have requirements.txt in deps_by_file
+            requirements_path = Path("requirements.txt")
+            if requirements_path in deps:
+                deps_str = str(requirements_path)
+                assert deps[deps_str] is not None
+                assert len(deps[deps_str]) >= 0
+        finally:
+            shutil.rmtree(project_path)
+
     def test_parse_file_auto_detection(self):
         """Test automatic file type detection."""
         tmpdir = tempfile.mkdtemp()

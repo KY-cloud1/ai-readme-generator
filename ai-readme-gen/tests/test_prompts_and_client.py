@@ -28,7 +28,9 @@ from cli.ai.client import (
     APIError,
     RateLimitError,
     AuthenticationError,
+    normalize_provider,
 )
+from cli.commands.config import validate_config, get_config
 
 
 def test_create_analysis_prompt_basic():
@@ -541,6 +543,124 @@ def test_stream_ai_response_openai():
     assert "messages" in params
     assert "provider" in params
     assert "max_tokens" in params
+
+
+def test_normalize_provider_enum():
+    """Test normalize_provider with AIProvider enum."""
+    from cli.ai.client import AIProvider
+
+    result = normalize_provider(AIProvider.ANTHROPIC)
+    assert result == AIProvider.ANTHROPIC
+
+    result = normalize_provider(AIProvider.OPENAI)
+    assert result == AIProvider.OPENAI
+
+    result = normalize_provider(AIProvider.LOCAL)
+    assert result == AIProvider.LOCAL
+
+
+def test_normalize_provider_string_anthropic():
+    """Test normalize_provider with string 'anthropic'."""
+    result = normalize_provider("anthropic")
+    assert result == AIProvider.ANTHROPIC
+
+
+def test_normalize_provider_string_openai():
+    """Test normalize_provider with string 'openai'."""
+    result = normalize_provider("openai")
+    assert result == AIProvider.OPENAI
+
+
+def test_normalize_provider_string_local():
+    """Test normalize_provider with string 'local'."""
+    result = normalize_provider("local")
+    assert result == AIProvider.LOCAL
+
+
+def test_normalize_provider_string_case_insensitive():
+    """Test normalize_provider with different case variations."""
+    assert normalize_provider("ANTHROPIC") == AIProvider.ANTHROPIC
+    assert normalize_provider("Anthropic") == AIProvider.ANTHROPIC
+    assert normalize_provider("OPENAI") == AIProvider.OPENAI
+    assert normalize_provider("OpenAI") == AIProvider.OPENAI
+    assert normalize_provider("LOCAL") == AIProvider.LOCAL
+    assert normalize_provider("Local") == AIProvider.LOCAL
+
+
+def test_normalize_provider_unknown_string():
+    """Test normalize_provider with unknown provider string."""
+    from cli.ai.client import AIError
+
+    with pytest.raises(AIError) as exc_info:
+        normalize_provider("unknown-provider")
+
+    assert "Unknown provider" in str(exc_info.value)
+
+
+def test_normalize_provider_invalid_type():
+    """Test normalize_provider with invalid type (int)."""
+    from cli.ai.client import AIError
+
+    with pytest.raises(AIError) as exc_info:
+        # Type checker knows this will fail, but we're testing the error path
+        normalize_provider(123)  # type: ignore[arg-type]
+
+    assert "Invalid provider type" in str(exc_info.value)
+
+
+def test_normalize_provider_none():
+    """Test normalize_provider with None."""
+    from cli.ai.client import AIError
+
+    with pytest.raises(AIError) as exc_info:
+        # Type checker knows this will fail, but we're testing the error path
+        normalize_provider(None)  # type: ignore[arg-type]
+
+    assert "Invalid provider type" in str(exc_info.value)
+
+
+def test_normalize_provider_empty_string():
+    """Test normalize_provider with empty string."""
+    from cli.ai.client import AIError
+
+    with pytest.raises(AIError) as exc_info:
+        normalize_provider("")
+
+    assert "Unknown provider" in str(exc_info.value)
+
+
+def test_normalize_provider_whitespace_string():
+    """Test normalize_provider with whitespace string."""
+    from cli.ai.client import AIError
+
+    with pytest.raises(AIError) as exc_info:
+        normalize_provider("  ")
+
+    assert "Unknown provider" in str(exc_info.value)
+
+
+def test_validate_config_local_provider():
+    """Test validate_config with local provider."""
+    from unittest.mock import patch, MagicMock
+    from cli.commands.config import validate_config, get_config
+
+    # Test local provider without OLLAMA_BASE_URL
+    with patch.dict('os.environ', {'AI_PROVIDER': 'local'}):
+        config = get_config()
+        assert config["ai"]["provider"] == "local"
+        assert validate_config() is True
+
+    # Test local provider with OLLAMA_BASE_URL
+    with patch.dict('os.environ', {'AI_PROVIDER': 'local', 'OLLAMA_BASE_URL': 'http://localhost:11434'}):
+        config = get_config()
+        assert config["ai"]["provider"] == "local"
+        assert validate_config() is True
+
+    # Test local provider with empty OLLAMA_BASE_URL
+    with patch.dict('os.environ', {'AI_PROVIDER': 'local', 'OLLAMA_BASE_URL': ''}):
+        config = get_config()
+        assert config["ai"]["provider"] == "local"
+        assert validate_config() is True
 
 
 if __name__ == "__main__":
