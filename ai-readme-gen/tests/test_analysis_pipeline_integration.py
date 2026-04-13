@@ -17,7 +17,7 @@ from cli.analysis.codebase import scan_codebase, parse_python_file
 from cli.analysis.extractor import (
     extract_project_metadata,
     extract_api_endpoints,
-    extract_setup_instructions,
+    extract_setup_instructions
 )
 from cli.analysis.agent import (
     run_agent_pipeline,
@@ -25,7 +25,7 @@ from cli.analysis.agent import (
     Architect,
     TechnicalWriter,
     APIExtractor as AgentAPIExtractor,
-    Reviewer,
+    Reviewer
 )
 from cli.analysis.parser import parse_file, extract_dependencies, extract_project_dependencies
 from cli.commands.analyze import analyze_codebase, format_analysis, analyze_and_generate
@@ -33,9 +33,9 @@ from cli.commands.generate import (
     generate_readme,
     generate_diagram,
     generate_api_docs,
-    generate_setup_instructions,
+    generate_setup_instructions
 )
-from cli.ai.client import AuthenticationError, AIError
+from cli.ai.client import AuthenticationError
 
 
 # =============================================================================
@@ -692,7 +692,7 @@ class TestFullAnalysisPipeline:
 
         with patch('cli.commands.generate.call_ai_model') as mock_call:
             mock_call.side_effect = AuthenticationError("No API key configured")
-            api_docs = generate_api_docs(endpoints)
+            api_docs = generate_api_docs({}, endpoints)
 
         assert "API Reference" in api_docs, "API docs should have reference section"
         assert "Endpoints" in api_docs, "API docs should have endpoints section"
@@ -779,7 +779,7 @@ class TestFullAnalysisPipeline:
         if endpoints:
             with patch('cli.commands.generate.call_ai_model') as mock_call:
                 mock_call.side_effect = AuthenticationError("No API key configured")
-                api_docs = generate_api_docs(endpoints)
+                api_docs = generate_api_docs({}, endpoints)
                 assert len(api_docs) > 0, "API docs should not be empty"
         else:
             api_docs = ""
@@ -1511,7 +1511,7 @@ class TestAnalysisGeneratorIntegration:
 
         with patch('cli.commands.generate.call_ai_model') as mock_call:
             mock_call.side_effect = AuthenticationError("No API key configured")
-            api_docs = generate_api_docs(endpoints)
+            api_docs = generate_api_docs({}, endpoints)
 
         assert "API Reference" in api_docs, "API docs should have reference section"
         assert len(api_docs) > 0, "API docs should not be empty"
