@@ -11,7 +11,7 @@ import tempfile
 import shutil
 from pathlib import Path
 from typing import Dict, Any
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from cli.analysis.codebase import scan_codebase, parse_python_file
 from cli.analysis.extractor import (
@@ -20,10 +20,7 @@ from cli.analysis.extractor import (
     extract_setup_instructions,
 )
 from cli.analysis.agent import (
-    create_agent_pipeline,
     run_agent_pipeline,
-    Agent,
-    AgentResult,
     CodebaseAnalyst,
     Architect,
     TechnicalWriter,
@@ -39,11 +36,6 @@ from cli.commands.generate import (
     generate_setup_instructions,
 )
 from cli.ai.client import AuthenticationError
-from cli.ai.prompts import (
-    create_readme_prompt,
-    create_diagram_prompt,
-    create_api_docs_prompt,
-)
 
 
 def create_test_project():
@@ -726,8 +718,14 @@ from sqlalchemy import create_engine
         try:
             deps = extract_project_dependencies(str(project_path))
 
-            # Should find requirements.txt
-            assert len(deps) >= 0
+            # Should find requirements.txt in the deps dict (with absolute path)
+            assert isinstance(deps, dict)
+            # Check that at least one dependency file was found
+            assert len(deps) >= 1
+            # Verify the structure of the returned dict
+            for dep_path, dep_list in deps.items():
+                assert isinstance(dep_path, str)
+                assert isinstance(dep_list, list)
         finally:
             shutil.rmtree(project_path)
 
@@ -883,9 +881,12 @@ requests>=2.28.0
 
             deps = extract_dependencies(str(tmpdir / "requirements.txt"))
 
-            # Should extract the package name from the URL
+            # Should extract the regular package
             assert "requests" in deps
-            # URL-based packages may or may not be extracted depending on regex
+            # URL-based packages (-e git+..., -r ...) should be handled gracefully without error
+            # They may or may not be extracted depending on regex, but the function should not crash
+            assert isinstance(deps, list)
+            assert len(deps) >= 0  # At minimum, the function returns without error
         finally:
             shutil.rmtree(tmpdir)
 
@@ -902,12 +903,14 @@ requests>=2.28.0
         try:
             deps = extract_project_dependencies(str(project_path))
 
-            # Should have requirements.txt in deps_by_file
-            requirements_path = Path("requirements.txt")
-            if requirements_path in deps:
-                deps_str = str(requirements_path)
-                assert deps[deps_str] is not None
-                assert len(deps[deps_str]) >= 0
+            # Should have requirements.txt in deps_by_file (with absolute path)
+            requirements_path = Path(project_path) / "requirements.txt"
+            deps_str = str(requirements_path)
+            assert deps[deps_str] is not None
+            # Verify actual dependencies were extracted (should have requests and flask)
+            assert len(deps[deps_str]) >= 2
+            assert "requests" in deps[deps_str]
+            assert "flask" in deps[deps_str]
         finally:
             shutil.rmtree(project_path)
 

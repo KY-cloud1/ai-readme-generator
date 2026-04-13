@@ -1,9 +1,7 @@
 """Tests for prompt templates and AI client error handling."""
 
 import pytest
-import os
-from unittest.mock import patch, MagicMock
-from pathlib import Path
+from unittest.mock import patch
 
 
 from cli.ai.prompts import (
@@ -14,20 +12,8 @@ from cli.ai.prompts import (
     create_review_prompt,
 )
 from cli.ai.client import (
-    AIModel,
     AIProvider,
-    get_api_key,
-    get_model,
-    call_anthropic,
-    call_openai,
-    call_local_model,
-    call_ai_model,
     extract_json_response,
-    stream_ai_response,
-    AIError,
-    APIError,
-    RateLimitError,
-    AuthenticationError,
     normalize_provider,
 )
 from cli.commands.config import validate_config, get_config
@@ -463,8 +449,8 @@ def test_extract_json_response_fallback_regex():
 
     result = extract_json_response(response)
     # The regex fallback may not work for single-quoted JSON
-    # This test verifies the function doesn't crash
-    assert result is not None or result is None  # Either outcome is acceptable
+    # Test verifies the function handles edge cases gracefully without crashing
+    assert result is None or isinstance(result, dict)
 
 
 def test_extract_json_response_invalid():
