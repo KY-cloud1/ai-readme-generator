@@ -63,4 +63,11 @@ def validate_config() -> bool:
         return bool(os.getenv("ANTHROPIC_API_KEY"))
     elif provider == "openai":
         return bool(os.getenv("OPENAI_API_KEY"))
+    elif provider == "local":
+        # Local provider doesn't require API keys
+        # Optional: check for OLLAMA_BASE_URL if configured
+        ollama_url = os.getenv("OLLAMA_BASE_URL")
+        if ollama_url:
+            return bool(ollama_url)
+        return True
     return True

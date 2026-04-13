@@ -80,6 +80,19 @@ def extract_dependencies(file_path: str) -> List[str]:
 
         return deps
 
+    elif ext == '.txt':
+        # Extract requirements.txt dependencies
+        with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
+
+        deps = []
+        # Match package names with optional version specifiers
+        # Handles: package, package==1.0, package>=1.0, package[extra], etc.
+        for match in re.finditer(r'^([a-zA-Z0-9_-]+)(?:\[[^\]]+\])?(?:[<>=!~].*)?$', content, re.MULTILINE):
+            deps.append(match.group(1))
+
+        return deps
+
     return []
 
 
