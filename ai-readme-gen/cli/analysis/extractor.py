@@ -57,26 +57,67 @@ def extract_from_pyproject(path: str) -> Dict[str, Any]:
         Dictionary with extracted metadata fields
     """
     base_path = Path(path)
-    with open(base_path, 'rb') as f:
-        data = tomllib.load(f)
+    try:
+        with open(base_path, 'rb') as f:
+            data = tomllib.load(f)
+    except (IOError, OSError, UnicodeDecodeError):
+        return {}
 
     project = data.get("project", {})
-    urls = project.get("urls", [])
+
+    # Safely get URLs - can be a list or dict
+    urls = project.get("urls")
+    # Handle both list format and dict format
+    if isinstance(urls, list):
+        # List format: ["https://example.com", ...]
+        repository = urls[0] if urls else None
+        urls_dict = {}
+    elif isinstance(urls, dict):
+        # Dict format: {"Homepage": "...", "Repository": "..."}
+        repository = None  # Will be set from dict keys
+        urls_dict = urls
+    else:
+        repository = None
+        urls_dict = {}
 
     result: Dict[str, Any] = {
         "name": project.get("name"),
         "version": project.get("version"),
         "description": project.get("description"),
-        "keywords": project.get("keywords", []),
-        "license": project.get("license", {}).get("text") if project.get("license") else None,
-        "repository": urls[0] if urls else None,
+        "keywords": project.get("keywords", []) if isinstance(project.get("keywords"), list) else [],
+        "license": project.get("license", {}).get("text") if isinstance(project.get("license"), dict) else None,
+        "repository": repository,
+        "classifiers": project.get("classifiers", []) if isinstance(project.get("classifiers"), list) else [],
     }
 
+    # Extract URLs
+    if urls_dict:
+        # Filter out empty values and preserve original case
+        filtered_urls = {k: v for k, v in urls_dict.items() if k and v}
+        if filtered_urls:
+            result["urls"] = filtered_urls
+
     # Extract author from tool.poetry or project
+    # Handle Poetry format: authors = ["Author <email>"]
     if "tool" in data and "poetry" in data["tool"]:
-        authors = data["tool"]["poetry"].get("authors")
-        if authors:
+        poetry = data["tool"]["poetry"]
+        # Extract Poetry metadata
+        result["name"] = poetry.get("name")
+        result["version"] = poetry.get("version")
+        result["description"] = poetry.get("description")
+        result["license"] = poetry.get("license")
+        authors = poetry.get("authors")
+        if authors and isinstance(authors, list) and len(authors) > 0:
             result["author"] = authors[0]
+    # Handle PEP 621 format: authors = [{"name": "...", "email": "..."}]
+    elif "project" in data and data["project"].get("authors"):
+        authors = data["project"]["authors"]
+        if isinstance(authors, list) and len(authors) > 0:
+            author = authors[0]
+            if isinstance(author, dict):
+                result["author"] = f"{author.get('name', '')} <{author.get('email', '')}>"
+            else:
+                result["author"] = author
 
     return result
 
