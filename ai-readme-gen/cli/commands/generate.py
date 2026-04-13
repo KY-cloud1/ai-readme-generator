@@ -1,21 +1,15 @@
 """Generate command for producing documentation."""
 
-import json
 from typing import Dict, Any, Optional
 
-from ..analysis.codebase import scan_codebase
 from ..analysis.extractor import (
-    extract_project_metadata,
-    extract_api_endpoints,
     extract_setup_instructions,
 )
 from ..ai.client import call_ai_model, AIProvider, extract_json_response, AuthenticationError
 from ..ai.prompts import (
-    create_analysis_prompt,
     create_readme_prompt,
     create_diagram_prompt,
     create_api_docs_prompt,
-    create_review_prompt,
 )
 from ..analysis.agent import AgentResult
 
@@ -130,7 +124,7 @@ def generate_diagram(
         raise ValueError("codebase_info cannot be empty")
     try:
         messages = [
-            {"role": "user", "content": create_diagram_prompt(codebase_info, analysis or {}, agent_context or {})},
+            {"role": "user", "content": create_diagram_prompt(codebase_info, analysis or {})},
         ]
 
         response = call_ai_model(messages, AIProvider.ANTHROPIC)
@@ -174,11 +168,19 @@ def generate_basic_diagram(
         lines.append(f"    │   └── {info.get('count', 0)} files")
 
     # Add entry points from agent_context if available
-    if agent_context and agent_context.get("entry_points"):
-        lines.append("")
-        lines.append("    Entry Points:")
-        for ep in agent_context.get("entry_points", [])[:5]:
-            lines.append(f"    ├── [⚡ {ep}]")
+    # agent_context is Dict[str, AgentResult], extract metadata from CodebaseAnalyst result
+    if agent_context:
+        # Look for entry_points in any AgentResult's metadata
+        entry_points = []
+        for result in agent_context.values():
+            if result.success and result.metadata:
+                entry_points = result.metadata.get("entry_points", [])
+                break
+        if entry_points:
+            lines.append("")
+            lines.append("    Entry Points:")
+            for ep in entry_points[:5]:
+                lines.append(f"    ├── [⚡ {ep}]")
 
     # Add top-level files if available
     for file in codebase_info.get("files", [])[:5]:
@@ -199,6 +201,7 @@ def generate_basic_diagram(
 
 
 def generate_api_docs(
+    codebase_info: Dict[str, Any],
     endpoints: Optional[list] = None,
     agent_context: Optional[Dict[str, AgentResult]] = None
 ) -> str:
@@ -206,6 +209,7 @@ def generate_api_docs(
     Generate API documentation.
 
     Args:
+        codebase_info: Codebase information from scanning
         endpoints: Optional list of API endpoints
         agent_context: Optional dictionary of agent results for enhanced context
 
@@ -220,7 +224,7 @@ def generate_api_docs(
 
     try:
         messages = [
-            {"role": "user", "content": create_api_docs_prompt(endpoints, agent_context or {})},
+            {"role": "user", "content": create_api_docs_prompt(codebase_info, endpoints)},
         ]
 
         response = call_ai_model(messages, AIProvider.ANTHROPIC)
@@ -250,8 +254,13 @@ def generate_basic_api_docs(endpoints: list, agent_context: Optional[Dict[str, A
     ]
 
     # Add summary from agent_context if available
+    # agent_context is Dict[str, AgentResult], extract metadata from APIExtractor result
     if agent_context:
-        metadata = agent_context.get("metadata", {})
+        metadata = {}
+        for result in agent_context.values():
+            if result.success and result.metadata:
+                metadata = result.metadata
+                break
         if metadata:
             lines.append("")
             lines.append("### Summary")

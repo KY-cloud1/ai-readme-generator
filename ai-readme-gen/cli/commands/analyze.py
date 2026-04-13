@@ -5,26 +5,12 @@ from typing import Dict, Any
 import json
 
 from ..analysis.codebase import scan_codebase
-from ..analysis.extractor import extract_project_metadata, extract_api_endpoints, extract_setup_instructions
+from ..analysis.extractor import extract_project_metadata, extract_api_endpoints
 from ..analysis.agent import (
-    create_agent_pipeline,
     run_agent_pipeline,
-    Agent,
     AgentResult,
-    CodebaseAnalyst,
-    Architect,
-    TechnicalWriter,
-    APIExtractor as AgentAPIExtractor,
-    Reviewer,
 )
-from ..ai.client import call_ai_model, AIProvider, extract_json_response, AuthenticationError
-from ..ai.prompts import (
-    create_analysis_prompt,
-    create_readme_prompt,
-    create_diagram_prompt,
-    create_api_docs_prompt,
-)
-from .generate import generate_readme, generate_diagram, generate_api_docs, generate_setup_instructions
+from .generate import generate_readme, generate_diagram, generate_api_docs
 
 
 def analyze_codebase(path: str, use_agents: bool = False) -> Dict[str, Any]:
@@ -250,7 +236,7 @@ def analyze_and_generate(
     # Step 4: Generate API docs (if endpoints exist)
     api_docs = ""
     if analysis.get('endpoints'):
-        api_docs = generate_api_docs(analysis['endpoints'], analysis.get('agents') if use_agents else None)
+        api_docs = generate_api_docs(analysis['codebase'], analysis['endpoints'], analysis.get('agents') if use_agents else None)
 
     # Step 5: Generate setup instructions (result not used - removed)
 
