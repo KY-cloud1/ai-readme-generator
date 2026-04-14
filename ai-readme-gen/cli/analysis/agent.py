@@ -274,6 +274,10 @@ class TechnicalWriter(Agent):
         analysis = context.get("analysis", {})
         file_dist = context.get("file_distribution", {})
 
+        # Ensure analysis is treated as a dict (it could be AgentResult or dict)
+        if isinstance(analysis, AgentResult):
+            analysis = analysis.metadata or {}
+
         # Generate project description
         description = metadata.get("description")
         if description is None:
