@@ -1,5 +1,6 @@
 """Generate command for producing documentation."""
 
+import click
 from typing import Dict, Any, Optional
 
 from ..analysis.extractor import (
@@ -143,8 +144,10 @@ def generate_diagram(
         return escaped_content
     except AuthenticationError:
         return generate_basic_diagram(codebase_info, agent_context)
-    except Exception:
-        # Log error and return basic diagram on any other error
+    except Exception as e:
+        # Catch specific exceptions that can occur during AI model call
+        # and return a basic diagram as fallback
+        click.echo(f"Warning: Failed to generate AI diagram: {type(e).__name__}: {e}", err=True)
         return generate_basic_diagram(codebase_info, agent_context)
 
 
