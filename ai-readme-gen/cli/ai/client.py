@@ -260,7 +260,13 @@ def stream_ai_response(
             "stream": True,
         }
 
-        with requests.post(url, json=payload, headers=headers, stream=True, timeout=120) as response:
+        with requests.post(
+            url,
+            json=payload,
+            headers=headers,
+            stream=True,
+            timeout=120,
+        ) as response:
             response.raise_for_status()
             for line in response.iter_lines():
                 if line:
@@ -293,7 +299,13 @@ def stream_ai_response(
             "stream": True,
         }
 
-        with requests.post(url, json=payload, headers=headers, stream=True, timeout=120) as response:
+        with requests.post(
+            url,
+            json=payload,
+            headers=headers,
+            stream=True,
+            timeout=120,
+        ) as response:
             response.raise_for_status()
             for line in response.iter_lines():
                 if line:
