@@ -4,7 +4,7 @@ import ast
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Set, Any
+from typing import Dict, Any
 
 
 SUPPORTED_EXTENSIONS = {
@@ -120,7 +120,8 @@ def parse_python_file(file_path: str) -> Dict[str, Any]:
         if isinstance(node, ast.Import):
             imports.append([alias.name for alias in node.names])
         elif isinstance(node, ast.ImportFrom):
-            module = node.module or ""
+            # Extract module name (unused but kept for clarity)
+            _ = node.module or ""
             imports.append([alias.name for alias in node.names])
 
         # Collect classes
@@ -185,9 +186,9 @@ def parse_javascript_file(file_path: str) -> Dict[str, Any]:
         imports.append(f"require('{imp}')")
 
     # Find exports
-    esm_exports = re.findall(r'export\s+(?:default\s+)?(?:function|class|const|let|var|async\s+function)\s+(\w+)', content)
+    _ = re.findall(r'export\s+(?:default\s+)?(?:function|class|const|let|var|async\s+function)\s+(\w+)', content)  # noqa: E501
     esm_named_exports = re.findall(r'export\s+\{([^}]+)\}\s+from\s+[\'"]([^\'"]+)[\'"]', content)
-    commonjs_exports = re.findall(r'module\.exports\s*=\s*(\w+)', content)
+    _ = re.findall(r'module\.exports\s*=\s*(\w+)', content)
 
     if esm_named_exports:
         exports.extend(esm_named_exports)

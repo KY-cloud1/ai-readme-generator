@@ -5,7 +5,7 @@ import os
 import re
 import tomllib
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 
 
 def extract_project_metadata(path: str) -> Dict[str, Any]:
@@ -84,10 +84,10 @@ def extract_from_pyproject(path: str) -> Dict[str, Any]:
         "name": project.get("name"),
         "version": project.get("version"),
         "description": project.get("description"),
-        "keywords": project.get("keywords", []) if isinstance(project.get("keywords"), list) else [],
-        "license": project.get("license", {}).get("text") if isinstance(project.get("license"), dict) else None,
+        "keywords": project.get("keywords", []) if isinstance(project.get("keywords"), list) else [],  # noqa: E501
+        "license": project.get("license", {}).get("text") if isinstance(project.get("license"), dict) else None,  # noqa: E501
         "repository": repository,
-        "classifiers": project.get("classifiers", []) if isinstance(project.get("classifiers"), list) else [],
+        "classifiers": project.get("classifiers", []) if isinstance(project.get("classifiers"), list) else [],  # noqa: E501
     }
 
     # Extract URLs
@@ -141,7 +141,7 @@ def extract_from_package_json(path: str) -> Dict[str, Any]:
         "keywords": data.get("keywords", []),
         "license": data.get("license"),
         "author": data.get("author") or data.get("authors", [None])[0],
-        "repository": data.get("repository", {}).get("url") if isinstance(data.get("repository"), dict) else data.get("repository"),
+        "repository": data.get("repository", {}).get("url") if isinstance(data.get("repository"), dict) else data.get("repository"),  # noqa: E501
     }
 
     return result
@@ -191,7 +191,7 @@ def extract_api_endpoints(path: str) -> List[Dict[str, Any]]:
         (r'@app\.put\s*\(\s*[\'"](/[\w/_-]+[\'"])\s*\)', 'fastapi-put'),
         (r'@app\.delete\s*\(\s*[\'"](/[\w/_-]+[\'"])\s*\)', 'fastapi-delete'),
         # With additional parameters (tags, summary, etc.)
-        (r'@app\.(get|post|put|delete)\s*\(\s*(?:[\w,=\s]+\s*)?[\'"](/[\w/_-]+[\'"])\s*\)', 'fastapi-generic'),
+        (r'@app\.(get|post|put|delete)\s*\(\s*(?:[\w,=\s]+\s*)?[\'"](/[\w/_-]+[\'"])\s*\)', 'fastapi-generic'),  # noqa: E501
     ]
 
     # Look for Express/Fastify routes (with various patterns)
@@ -200,12 +200,12 @@ def extract_api_endpoints(path: str) -> List[Dict[str, Any]]:
         (r'router\.(get|post|put|delete|patch)\s*\(\s*[\'"](/[\w/_-]+[\'"])\s*\)', 'express'),
         (r'fastify\.(get|post|put|delete|patch)\s*\(\s*[\'"](/[\w/_-]+[\'"])\s*\)', 'fastify'),
         # With path parameters
-        (r'router\.(get|post|put|delete|patch)\s*\(\s*[\'"](/[\w/_-]+/{:[\w]+}[\'"])\s*\)', 'express'),
-        (r'fastify\.(get|post|put|delete|patch)\s*\(\s*[\'"](/[\w/_-]+/{:[\w]+}[\'"])\s*\)', 'fastify'),
+        (r'router\.(get|post|put|delete|patch)\s*\(\s*[\'"](/[\w/_-]+/{:[\w]+}[\'"])\s*\)', 'express'),  # noqa: E501
+        (r'fastify\.(get|post|put|delete|patch)\s*\(\s*[\'"](/[\w/_-]+/{:[\w]+}[\'"])\s*\)', 'fastify'),  # noqa: E501
         # Additional patterns for different frameworks
         (r'app\.(get|post|put|delete|patch)\s*\(\s*[\'"](/[\w/_-]+[\'"])\s*\)', 'express-app'),
         # With additional parameters
-        (r'(?:router|app|fastify)\.(get|post|put|delete|patch)\s*\(\s*(?:[\w,=\s]+\s*)?[\'"](/[\w/_-]+[\'"])\s*\)', 'express-generic'),
+        (r'(?:router|app|fastify)\.(get|post|put|delete|patch)\s*\(\s*(?:[\w,=\s]+\s*)?[\'"](/[\w/_-]+[\'"])\s*\)', 'express-generic'),  # noqa: E501
     ]
 
     for root, dirs, files in os.walk(path):

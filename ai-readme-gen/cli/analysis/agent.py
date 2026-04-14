@@ -13,7 +13,7 @@ Example usage:
 import copy
 import re
 from typing import Dict, Any, List, Optional
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass, field
 
 
@@ -517,9 +517,9 @@ class Reviewer(Agent):
         }
         result = Reviewer().run(context)
         # Returns: AgentResult with rating "PASS" or "Review Required"
-    """
+    """  # noqa: E501
 
-    def run(self, context: Dict[str, Any], previous_results: Optional[Dict[str, Any]] = None) -> AgentResult:
+    def run(self, context: Dict[str, Any], previous_results: Optional[Dict[str, Any]] = None) -> AgentResult:  # noqa: E501
         """Run the reviewer agent with previous results.
 
         Args:
@@ -610,7 +610,7 @@ class Reviewer(Agent):
 
         installation = results.get("installation")
         if isinstance(installation, AgentResult):
-            installation = installation.metadata.get("installation") if installation.success else None
+            installation = installation.metadata.get("installation") if installation.success else None  # noqa: E501
         if not installation or not str(installation).strip():
             issues.append("Missing installation instructions")
 
@@ -648,7 +648,7 @@ class Reviewer(Agent):
                 for lang, files in file_dist.items():
                     if isinstance(files, list):
                         for file in files:
-                            if isinstance(file, str) and any(kw in file.lower() for kw in entry_keywords):
+                            if isinstance(file, str) and any(kw in file.lower() for kw in entry_keywords):  # noqa: E501
                                 has_potential_entry = True
                                 break
                     if has_potential_entry:
@@ -673,7 +673,7 @@ class Reviewer(Agent):
 
         return {"issues": issues}
 
-    def _validate_against_codebase(self, results: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_against_codebase(self, results: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:  # noqa: E501
         """Validate generated content against actual codebase.
 
         Args:
@@ -925,7 +925,7 @@ def run_agent_pipeline(
         # Use getattr with default to avoid false positives for static analysis
         propagate_method = getattr(agent, "_propagate_to_context", None)
         if propagate_method is not None and callable(propagate_method):
-            propagation_result: Dict[str, Any] = propagate_method(agent_context, result)  # type: ignore
+            propagation_result: Dict[str, Any] = propagate_method(agent_context, result)  # type: ignore  # noqa: E501
             # Merge propagation result into agent_context (handle None for backward compat)
             if propagation_result:
                 for key, value in propagation_result.items():

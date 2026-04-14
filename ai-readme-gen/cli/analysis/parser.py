@@ -88,7 +88,11 @@ def extract_dependencies(file_path: str) -> List[str]:
         deps = []
         # Match package names with optional version specifiers
         # Handles: package, package==1.0, package>=1.0, package[extra], etc.
-        for match in re.finditer(r'^([a-zA-Z0-9_-]+)(?:\[[^\]]+\])?(?:[<>=!~].*)?$', content, re.MULTILINE):
+        for match in re.finditer(  # noqa: E501
+            r'^([a-zA-Z0-9_-]+)(?:\[[^\]]+\])?(?:[<>=!~].*)?$',
+            content,
+            re.MULTILINE,
+        ):
             deps.append(match.group(1))
 
         return deps
@@ -115,7 +119,7 @@ def extract_project_dependencies(path: str) -> Dict[str, List[str]]:
         'setup.py': 'python',
     }
 
-    base_path = Path(path) 
+    base_path = Path(path)
     for dep_file, lang in dep_files.items():
         dep_path = base_path / dep_file
         if dep_path.exists():

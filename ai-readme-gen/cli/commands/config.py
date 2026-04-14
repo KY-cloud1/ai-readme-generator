@@ -1,7 +1,7 @@
 """Configuration handling for the CLI."""
 
 import os
-from typing import Dict, Optional
+from typing import Dict
 
 
 def get_config() -> Dict[str, Dict[str, str]]:

@@ -45,7 +45,7 @@ Respond in JSON format with the following structure:
   "data_flow": "string",
   "entry_points": ["entry1", "entry2", ...]
 }}
-"""
+"""  # noqa: E501
     return prompt
 
 
@@ -119,7 +119,7 @@ Write a comprehensive README.md including these sections:
 - Be clear, concise, and accurate
 - No hallucination of non-existent features
 - Use proper Markdown formatting
-"""
+"""  # noqa: E501
     return prompt
 
 
