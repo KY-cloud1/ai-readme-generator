@@ -120,7 +120,8 @@ def call_anthropic(
     except requests.exceptions.Timeout:
         raise APIError("Request timed out")
     except requests.exceptions.HTTPError as e:
-        if e.response and e.response.status_code == 401:
+        # Check for 401 authentication errors, but safely handle cases where response is None
+        if e.response is not None and e.response.status_code == 401:
             raise AuthenticationError("API key is invalid or missing.")
         raise APIError(f"API request failed: {str(e)}")
     except requests.exceptions.RequestException as e:
@@ -166,7 +167,8 @@ def call_openai(
     except requests.exceptions.Timeout:
         raise APIError("Request timed out")
     except requests.exceptions.HTTPError as e:
-        if e.response and e.response.status_code == 401:
+        # Check for 401 authentication errors, but safely handle cases where response is None
+        if e.response is not None and e.response.status_code == 401:
             raise AuthenticationError("API key is invalid or missing.")
         raise APIError(f"API request failed: {str(e)}")
     except requests.exceptions.RequestException as e:
