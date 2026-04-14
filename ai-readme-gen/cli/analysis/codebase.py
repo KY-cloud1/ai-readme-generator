@@ -120,8 +120,6 @@ def parse_python_file(file_path: str) -> Dict[str, Any]:
         if isinstance(node, ast.Import):
             imports.append([alias.name for alias in node.names])
         elif isinstance(node, ast.ImportFrom):
-            # Extract module name (unused but kept for clarity)
-            _ = node.module or ""
             imports.append([alias.name for alias in node.names])
 
         # Collect classes

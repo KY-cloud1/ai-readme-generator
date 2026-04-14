@@ -152,16 +152,15 @@ def generate_basic_diagram(
     codebase_info: Dict[str, Any],
     agent_context: Optional[Dict[str, AgentResult]] = None
 ) -> str:
-    """
-        Generate a basic ASCII diagram without AI.
+    """Generate a basic ASCII diagram without AI.
 
-        Args:
-            codebase_info: Codebase information from scanning
-            agent_context: Optional dictionary of agent results for enhanced
-                context with patterns and entry points
+    Args:
+        codebase_info: Codebase information from scanning
+        agent_context: Optional dictionary of agent results for enhanced
+            context with patterns and entry points
 
-        Returns:
-            Basic ASCII diagram with actual codebase structure
+    Returns:
+        Basic ASCII diagram with actual codebase structure
     """
     lines = [
         "```",
@@ -249,15 +248,14 @@ def generate_basic_api_docs(
     endpoints: list,
     agent_context: Optional[Dict[str, AgentResult]] = None
 ) -> str:
-    """
-        Generate basic API docs without AI.
+    """Generate basic API docs without AI.
 
-        Args:
-            endpoints: List of API endpoints
-            agent_context: Optional dictionary of agent results for enhanced
-                context with patterns and metadata
+    Args:
+        endpoints: List of API endpoints
+        agent_context: Optional dictionary of agent results for enhanced
+            context with patterns and metadata
 
-        Returns:
+    Returns:
         Basic API documentation with endpoint listing
     """
     lines = [
