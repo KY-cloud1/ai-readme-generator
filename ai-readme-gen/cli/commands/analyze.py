@@ -200,7 +200,6 @@ def analyze_and_generate(
     Raises:
         FileNotFoundError: If path does not exist
     """
-    from typing import List
 
     # Step 1: Analyze codebase
     analysis: Dict[str, Any] = analyze_codebase(path, use_agents)
@@ -212,8 +211,7 @@ def analyze_and_generate(
     technicalwriter_result = analysis.get('agents', {}).get('TechnicalWriter')
     tw_metadata = None
     if technicalwriter_result and technicalwriter_result.success:
-        if hasattr(technicalwriter_result, 'metadata'):
-            tw_metadata = technicalwriter_result.metadata
+        tw_metadata = technicalwriter_result.metadata
     readme = generate_readme(
         analysis['codebase'],
         analysis['metadata'],
@@ -225,8 +223,7 @@ def analyze_and_generate(
     architect_result = analysis.get('agents', {}).get('Architect')
     arch_metadata = None
     if architect_result and architect_result.success:
-        if hasattr(architect_result, 'metadata'):
-            arch_metadata = architect_result.metadata
+        arch_metadata = architect_result.metadata
     diagram = generate_diagram(
         analysis['codebase'],
         arch_metadata if use_agents else analysis,
@@ -235,13 +232,17 @@ def analyze_and_generate(
 
     # Step 4: Generate API docs (if endpoints exist)
     api_docs = ""
-    if analysis.get('endpoints'):
-        api_docs = generate_api_docs(analysis['codebase'], analysis['endpoints'], analysis.get('agents') if use_agents else None)
+    if analysis.get("endpoints"):
+        api_docs = generate_api_docs(
+            analysis["codebase"],
+            analysis["endpoints"],
+            analysis.get("agents") if use_agents else None
+        )
 
     # Step 5: Generate setup instructions (result not used - removed)
 
     # Combine all outputs
-    output: List[str] = []
+    output: list = []
 
     if verbose:
         output.append("=== Generated Documentation ===")

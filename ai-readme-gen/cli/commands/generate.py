@@ -39,7 +39,11 @@ def generate_readme(
         raise ValueError("codebase_info and metadata cannot be empty")
     try:
         messages = [
-            {"role": "user", "content": create_readme_prompt(codebase_info, metadata, analysis or {})},
+            {"role": "user", "content": create_readme_prompt(
+                codebase_info,
+                metadata,
+                analysis or {}
+            )},
         ]
 
         response = call_ai_model(messages, AIProvider.ANTHROPIC)
@@ -128,16 +132,18 @@ def generate_diagram(
         ]
 
         response = call_ai_model(messages, AIProvider.ANTHROPIC)
-        content = response.get("content", response.get("choices", [{}])[0].get("message", {}).get("content", ""))
+        # Handle long response extraction
+        choices = response.get("choices", [{}])
+        message = choices[0].get("message", {}) if choices else {}
+        content = message.get("content", "") if message else ""
 
         # Escape special characters for terminal output
-        # Replace backticks with backticks surrounded by spaces to prevent terminal highlighting
         escaped_content = content.replace("`", " ` ")
 
         return escaped_content
     except AuthenticationError:
         return generate_basic_diagram(codebase_info, agent_context)
-    except Exception as e:
+    except Exception:
         # Log error and return basic diagram on any other error
         return generate_basic_diagram(codebase_info, agent_context)
 
@@ -147,14 +153,15 @@ def generate_basic_diagram(
     agent_context: Optional[Dict[str, AgentResult]] = None
 ) -> str:
     """
-    Generate a basic ASCII diagram without AI.
+        Generate a basic ASCII diagram without AI.
 
-    Args:
-        codebase_info: Codebase information from scanning
-        agent_context: Optional dictionary of agent results for enhanced context with patterns and entry points
+        Args:
+            codebase_info: Codebase information from scanning
+            agent_context: Optional dictionary of agent results for enhanced
+                context with patterns and entry points
 
-    Returns:
-        Basic ASCII diagram with actual codebase structure
+        Returns:
+            Basic ASCII diagram with actual codebase structure
     """
     lines = [
         "```",
@@ -228,22 +235,29 @@ def generate_api_docs(
         ]
 
         response = call_ai_model(messages, AIProvider.ANTHROPIC)
-        content = response.get("content", response.get("choices", [{}])[0].get("message", {}).get("content", ""))
+        # Handle long response extraction
+        choices = response.get("choices", [{}])
+        message = choices[0].get("message", {}) if choices else {}
+        content = message.get("content", "") if message else ""
 
         return content
     except AuthenticationError:
         return generate_basic_api_docs(endpoints, agent_context)
 
 
-def generate_basic_api_docs(endpoints: list, agent_context: Optional[Dict[str, AgentResult]] = None) -> str:
+def generate_basic_api_docs(
+    endpoints: list,
+    agent_context: Optional[Dict[str, AgentResult]] = None
+) -> str:
     """
-    Generate basic API docs without AI.
+        Generate basic API docs without AI.
 
-    Args:
-        endpoints: List of API endpoints
-        agent_context: Optional dictionary of agent results for enhanced context with patterns and metadata
+        Args:
+            endpoints: List of API endpoints
+            agent_context: Optional dictionary of agent results for enhanced
+                context with patterns and metadata
 
-    Returns:
+        Returns:
         Basic API documentation with endpoint listing
     """
     lines = [

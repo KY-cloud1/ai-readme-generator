@@ -139,7 +139,13 @@ def diagram(path, output, verbose, use_agents):
         if not analysis:
             click.echo("Error: Failed to analyze codebase", err=True)
             return 1
-        diagram = generate_diagram(analysis['codebase'], analysis.get('agents', {}).get('Architect'), analysis.get('agents'))
+        # Generate diagram with proper agent context
+        architect_result = analysis.get('agents', {}).get('Architect')
+        diagram = generate_diagram(
+            analysis['codebase'],
+            architect_result,
+            analysis.get('agents')
+        )
     except FileNotFoundError as e:
         click.echo(f"Error: {e}", err=True)
         return 2
@@ -176,7 +182,12 @@ def api(path, output, verbose, use_agents):
         if not analysis:
             click.echo("Error: Failed to analyze codebase", err=True)
             return 1
-        api_docs = generate_api_docs(analysis.get('codebase', {}), analysis.get('endpoints', []), analysis.get('agents'))
+        # Generate API docs with proper agent context
+        api_docs = generate_api_docs(
+            analysis.get('codebase', {}),
+            analysis.get('endpoints', []),
+            analysis.get('agents')
+        )
     except FileNotFoundError as e:
         click.echo(f"Error: {e}", err=True)
         return 2
