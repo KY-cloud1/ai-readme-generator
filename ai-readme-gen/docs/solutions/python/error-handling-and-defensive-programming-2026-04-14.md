@@ -5,7 +5,7 @@ problem_type: error_handling
 status: resolved
 date: 2026-04-14
 last_updated: 2026-04-14
-module: ai-readme-gen/cli/ai,ai-readme-gen/cli/analysis,ai-readme-gen/cli/commands
+module: ai-readme-gen/cli/ai/client.py,ai-readme-gen/cli/analysis/agent.py,ai-readme-gen/cli/commands/generate.py
 files:
   - ai-readme-gen/cli/ai/client.py
   - ai-readme-gen/cli/analysis/agent.py

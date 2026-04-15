@@ -57,8 +57,11 @@ def generate_readme(
             return result.get("readme", str(result))
 
         return "# Project Documentation\n\n" + str(result)
-    except AuthenticationError:
-        click.echo("Warning: Authentication failed. Generating basic README.", err=True)
+    except AuthenticationError as e:
+        click.echo(f"Warning: Authentication failed. Generating basic README.", err=True)
+        return generate_basic_readme(codebase_info, metadata)
+    except Exception as e:
+        click.echo(f"Warning: Failed to generate README: {type(e).__name__}: {e}", err=True)
         return generate_basic_readme(codebase_info, metadata)
 
 
@@ -144,7 +147,8 @@ def generate_diagram(
         escaped_content = content.replace("`", " ` ")
 
         return escaped_content
-    except AuthenticationError:
+    except AuthenticationError as e:
+        click.echo(f"Warning: Authentication failed. Generating basic diagram.", err=True)
         return generate_basic_diagram(codebase_info, agent_context)
     except Exception as e:
         # Catch specific exceptions that can occur during AI model call
@@ -243,8 +247,11 @@ def generate_api_docs(
         content = message.get("content", "") if message else ""
 
         return content
-    except AuthenticationError:
-        click.echo("Warning: Authentication failed. Generating basic API docs.", err=True)
+    except AuthenticationError as e:
+        click.echo(f"Warning: Authentication failed. Generating basic API docs.", err=True)
+        return generate_basic_api_docs(endpoints, agent_context)
+    except Exception as e:
+        click.echo(f"Warning: Failed to generate API docs: {type(e).__name__}: {e}", err=True)
         return generate_basic_api_docs(endpoints, agent_context)
 
 
