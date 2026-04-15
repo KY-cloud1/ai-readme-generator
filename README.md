@@ -5,7 +5,6 @@ AI-powered documentation generator that creates high-quality README files, archi
 ## Features
 
 - **CLI Tool**: Command-line interface for analyzing codebases
-- **Web Dashboard**: Manage projects through a web interface
 - **Multi-language Support**: Python and JavaScript/TypeScript
 - **ASCII Diagrams**: Architecture diagrams in ASCII art
 - **API Documentation**: Extract and document API endpoints
@@ -16,7 +15,6 @@ AI-powered documentation generator that creates high-quality README files, archi
 ### Prerequisites
 
 - Python 3.9+
-- Node.js 18+
 - API key (Anthropic or OpenAI)
 
 ### Setup
@@ -28,17 +26,24 @@ git clone https://github.com/example/ai-readme-gen
 cd ai-readme-gen
 ```
 
-2. **Install Python dependencies**
+2. **Create and activate a Python virtual environment**
+
+```bash
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+# On macOS/Linux:
+source venv/bin/activate
+
+# On Windows:
+venv\Scripts\activate
+```
+
+3. **Install Python dependencies**
 
 ```bash
 pip install -e ".[dev,web]"
-```
-
-3. **Install web dependencies**
-
-```bash
-cd web
-npm install
 ```
 
 4. **Set up API keys**
@@ -75,19 +80,6 @@ ai-readme-gen api /path/to/project -o api.md
 ai-readme-gen setup /path/to/project -o setup.md
 ```
 
-### Web Dashboard
-
-```bash
-# Start backend (Python)
-ai-readme-gen --config
-
-# Start web server
-cd web
-npm run dev
-```
-
-Visit `http://localhost:3000` to access the dashboard.
-
 ## Configuration
 
 ### Environment Variables
@@ -121,32 +113,43 @@ black .
 mypy cli
 ```
 
-### Web
-
-```bash
-# Run development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Run linting
-npm run lint
-```
-
 ## Architecture
 
 ```
 ai-readme-gen/
-├── cli/                    # Python CLI application
-│   ├── analysis/          # Codebase analysis
-│   ├── ai/                # AI integration
-│   └── commands/          # CLI commands
-├── web/                   # Next.js web application
-│   ├── src/
-│   │   ├── app/          # Next.js App Router
-│   │   ├── components/   # React components
-│   │   └── lib/          # Utilities
-│   └── public/
-└── docs/                  # Documentation
+├── cli/                          # Python CLI application
+│   ├── __init__.py
+│   ├── main.py                   # CLI entry point
+│   ├── analysis/                 # Codebase analysis logic
+│   │   ├── __init__.py
+│   │   ├── agent.py              # AI agent for analysis
+│   │   ├── codebase.py           # Codebase traversal and analysis
+│   │   ├── extractor.py          # Content extraction utilities
+│   │   └── parser.py             # Document parsing logic
+│   ├── ai/                       # AI client integration
+│   │   ├── __init__.py
+│   │   ├── client.py             # AI API client
+│   │   └── prompts.py            # Prompt templates
+│   └── commands/                 # CLI command implementations
+│       ├── __init__.py
+│       ├── analyze.py            # Analyze command
+│       ├── config.py             # Config command
+│       └── generate.py           # Generate command
+├── tests/                        # Test suite
+│   ├── __init__.py
+│   ├── test_codebase_analysis.py              # Extended codebase analysis tests
+│   ├── test_codebase_analysis_extended.py     # Additional analysis tests
+│   ├── test_analysis_pipeline_integration.py  # Pipeline integration tests
+│   ├── test_api_endpoints.py     # API endpoint tests
+│   ├── test_agents.py            # Agent tests
+│   └── test_error_logging.py     # Error logging tests
+├── docs/                         # Documentation
+│   ├── brainstorms/              # Brainstorming session notes
+│   │   └── requirements_ai_readme_generator.md
+│   ├── plans/                    # Implementation plans
+│   │   └── ai-readme-generator-cli-plan.md
+│   └── solutions/                # Documented solutions
+│       ├── python/               # Python-specific solutions
+│       └── development-workflow/ # Development workflow solutions
+└── pyproject.toml                # Python project configuration
 ```
