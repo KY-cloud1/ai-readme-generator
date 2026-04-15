@@ -282,9 +282,17 @@ class TechnicalWriter(Agent):
         analysis = context.get("analysis", {})
         file_dist = context.get("file_distribution", {})
 
+        # Ensure metadata is treated as a dict (it could be AgentResult or dict)
+        if isinstance(metadata, AgentResult):
+            metadata = metadata.metadata or {}
+
         # Ensure analysis is treated as a dict (it could be AgentResult or dict)
         if isinstance(analysis, AgentResult):
             analysis = analysis.metadata or {}
+
+        # Ensure file_dist is treated as a dict (it could be AgentResult or dict)
+        if isinstance(file_dist, AgentResult):
+            file_dist = file_dist.metadata or {}
 
         # Generate project description
         description = metadata.get("description")

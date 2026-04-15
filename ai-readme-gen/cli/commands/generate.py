@@ -243,6 +243,9 @@ def generate_api_docs(
         ]
 
         response = call_ai_model(messages, AIProvider.ANTHROPIC)
+        if response is None:
+            return generate_basic_api_docs(endpoints, agent_context)
+        choices = response.get("choices", [{}])
         message = choices[0].get("message", {}) if choices else {}
         content = message.get("content", "") if message else ""
 

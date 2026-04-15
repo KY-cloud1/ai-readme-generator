@@ -56,7 +56,7 @@ except Exception:
 
 ### Issue 2: None reference in HTTP error handling
 
-**Before:**
+**Before (pattern from original code):**
 ```python
 # In call_anthropic() and call_openai()
 except requests.exceptions.HTTPError as e:
