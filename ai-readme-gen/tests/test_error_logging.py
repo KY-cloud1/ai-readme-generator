@@ -4,12 +4,6 @@ This test file verifies that error messages appear on stderr when exceptions occ
 and that the None guard for e.response.status_code works correctly.
 """
 
-import json
-import subprocess
-import sys
-import tempfile
-import os
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest

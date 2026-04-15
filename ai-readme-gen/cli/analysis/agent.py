@@ -22,7 +22,10 @@ from dataclasses import dataclass, field
 # (e.g., main.py, app.py, entry.py, cli.py).
 ENTRY_POINT_KEYWORDS = ["main", "app", "entry", "cli", "run", "start"]
 
-# Maximum number of entry points to return
+# Maximum number of entry points to return.
+# Chosen as a trade-off between completeness and output length:
+# - 5 entry points provide sufficient coverage for most projects
+# - Prevents overwhelming output when many files match keywords like "main", "app"
 MAX_ENTRY_POINTS: int = 5
 
 
@@ -83,18 +86,15 @@ class CodebaseAnalyst(Agent):
 
         return AgentResult(success=True, metadata=result)
 
-    def _propagate_to_context(self, context: Dict, result: AgentResult) -> Dict[str, Any]:
+    def _propagate_to_context(self, context: Dict, result: AgentResult) -> None:
         """Propagate analysis results to context for dependent agents.
 
         This method mutates the context in-place for backward compatibility
-        with existing tests, but also returns a new dict for safe usage.
+        with existing tests.
 
         Args:
             context: The context dictionary (mutated in-place)
             result: The agent result to propagate
-
-        Returns:
-            A new dictionary with propagated values
         """
         metadata = result.metadata or {}
         # Mutate context in-place for backward compatibility
@@ -102,13 +102,6 @@ class CodebaseAnalyst(Agent):
         context["file_distribution"] = copy.deepcopy(metadata.get("file_distribution", {}))
         context["entry_points"] = copy.deepcopy(metadata.get("entry_points", []))
         context["dependencies"] = copy.deepcopy(metadata.get("dependencies", []))
-        # Also return a new dict for safe usage
-        return {
-            "metadata": copy.deepcopy(metadata),
-            "file_distribution": copy.deepcopy(metadata.get("file_distribution", {})),
-            "entry_points": copy.deepcopy(metadata.get("entry_points", [])),
-            "dependencies": copy.deepcopy(metadata.get("dependencies", [])),
-        }
 
     def _find_entry_points(self, files: List[Dict]) -> List[str]:
         """Find potential entry points in files.
@@ -245,25 +238,20 @@ class Architect(Agent):
             metadata={"patterns": patterns}
         )
 
-    def _propagate_to_context(self, context: Dict, result: AgentResult) -> Dict[str, Any]:
+    def _propagate_to_context(self, context: Dict, result: AgentResult) -> None:
         """Propagate architectural patterns to context for dependent agents.
 
         This method mutates the context in-place for backward compatibility
-        with existing tests, but also returns a new dict for safe usage.
+        with existing tests.
 
         Args:
             context: The context dictionary (mutated in-place)
             result: The agent result to propagate
-
-        Returns:
-            A new dictionary with propagated values
         """
         metadata = result.metadata or {}
         patterns = metadata.get("patterns", [])
         # Mutate context in-place for backward compatibility
         context["patterns"] = copy.deepcopy(patterns)
-        # Also return a new dict for safe usage
-        return {"patterns": copy.deepcopy(patterns)}
 
 
 class TechnicalWriter(Agent):
@@ -491,18 +479,15 @@ class APIExtractor(Agent):
 
         return AgentResult(success=True, metadata=result)
 
-    def _propagate_to_context(self, context: Dict[str, Any], result: AgentResult) -> Dict[str, Any]:
+    def _propagate_to_context(self, context: Dict, result: AgentResult) -> None:
         """Propagate API endpoint information to context for dependent agents.
 
         This method mutates the context in-place for backward compatibility
-        with existing tests, but also returns a new dict for safe usage.
+        with existing tests.
 
         Args:
             context: The context dictionary (mutated in-place)
             result: The agent result to propagate
-
-        Returns:
-            A new dictionary with propagated values
         """
         metadata = result.metadata or {}
         if not isinstance(metadata, dict):
@@ -518,12 +503,6 @@ class APIExtractor(Agent):
         if not isinstance(grouped, dict):
             grouped = {}
         context["grouped"] = copy.deepcopy(grouped)
-
-        # Also return a new dict for safe usage
-        return {
-            "endpoints": copy.deepcopy(endpoints),
-            "grouped": copy.deepcopy(grouped),
-        }
 
 
 class Reviewer(Agent):
@@ -751,18 +730,15 @@ class Reviewer(Agent):
 
         return {"issues": issues}
 
-    def _propagate_to_context(self, context: Dict[str, Any], result: AgentResult) -> Dict[str, Any]:
+    def _propagate_to_context(self, context: Dict, result: AgentResult) -> None:
         """Propagate review results to context for dependent agents.
 
         This method mutates the context in-place for backward compatibility
-        with existing tests, but also returns a new dict for safe usage.
+        with existing tests.
 
         Args:
             context: The context dictionary (mutated in-place)
             result: The agent result to propagate
-
-        Returns:
-            A new dictionary with propagated values
         """
         metadata = result.metadata or {}
         # Mutate context in-place for backward compatibility
@@ -771,14 +747,6 @@ class Reviewer(Agent):
         context["completeness"] = copy.deepcopy(metadata.get("completeness", {}))
         context["accuracy"] = copy.deepcopy(metadata.get("accuracy", {}))
         context["validation"] = copy.deepcopy(metadata.get("validation", {}))
-        # Also return a new dict for safe usage
-        return {
-            "rating": metadata.get("rating", "PASS"),
-            "review_notes": copy.deepcopy(metadata.get("notes", [])),
-            "completeness": copy.deepcopy(metadata.get("completeness", {})),
-            "accuracy": copy.deepcopy(metadata.get("accuracy", {})),
-            "validation": copy.deepcopy(metadata.get("validation", {})),
-        }
 
 
 class AgentPipeline:
@@ -945,11 +913,7 @@ def run_agent_pipeline(
         # Use getattr with default to avoid false positives for static analysis
         propagate_method = getattr(agent, "_propagate_to_context", None)
         if propagate_method is not None and callable(propagate_method):
-            propagation_result: Dict[str, Any] = propagate_method(agent_context, result)  # type: ignore  # noqa: E501
-            # Merge propagation result into agent_context (handle None for backward compat)
-            if propagation_result:
-                for key, value in propagation_result.items():
-                    agent_context[key] = value
+            propagate_method(agent_context, result)  # type: ignore  # noqa: E501
 
         # Pass the updated agent_context to the next agent
         context = agent_context

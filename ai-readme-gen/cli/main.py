@@ -8,6 +8,9 @@ import click
 from .commands.analyze import analyze_and_generate, analyze_codebase
 from .commands.config import validate_config
 from .commands.generate import generate_diagram, generate_api_docs, generate_setup_instructions
+from .commands.analyze import analyze_and_generate, analyze_codebase
+from .commands.config import validate_config
+from .commands.generate import generate_diagram, generate_api_docs, generate_setup_instructions
 
 
 def set_model_option(ctx: Any, param: Any, value: Optional[str]) -> Optional[str]:
@@ -21,7 +24,7 @@ def set_model_option(ctx: Any, param: Any, value: Optional[str]) -> Optional[str
 @click.version_option(version="0.1.0", prog_name="ai-readme-gen")
 @click.option("--model", "-m", envvar="AI_MODEL", help="AI model to use")
 @click.option("--help", "-h", "show_help", is_flag=True, help="Show help and exit")
-def main(model, show_help):
+def main(model: Optional[str], show_help: bool) -> None:
     """AI-powered README generator for codebases.
 
     Analyzes Python and JavaScript/TypeScript projects to generate:
@@ -93,7 +96,13 @@ Examples:
               help="Output format (default: text)")
 @click.option("--verbose", "-v", is_flag=True, help="Show verbose output")
 @click.option("--use-agents", is_flag=True, help="Use agent simulation for analysis")
-def analyze(path, output, format, verbose, use_agents):
+def analyze(
+    path: str,
+    output: Optional[str] = None,
+    format: str = "text",
+    verbose: bool = False,
+    use_agents: bool = False,
+) -> int:
     """Analyze a codebase and generate documentation.
 
     PATH: Path to the project directory to analyze
@@ -129,7 +138,12 @@ def analyze(path, output, format, verbose, use_agents):
 @click.option("--output", "-o", type=click.Path(), help="Output file path")
 @click.option("--verbose", "-v", is_flag=True, help="Show verbose output")
 @click.option("--use-agents", is_flag=True, help="Use agent simulation for analysis")
-def diagram(path, output, verbose, use_agents):
+def diagram(
+    path: str,
+    output: Optional[str] = None,
+    verbose: bool = False,
+    use_agents: bool = False,
+) -> int:
     """Generate ASCII architecture diagram for a codebase.
 
     PATH: Path to the project directory to analyze
@@ -172,7 +186,12 @@ def diagram(path, output, verbose, use_agents):
 @click.option("--output", "-o", type=click.Path(), help="Output file path")
 @click.option("--verbose", "-v", is_flag=True, help="Show verbose output")
 @click.option("--use-agents", is_flag=True, help="Use agent simulation for analysis")
-def api(path, output, verbose, use_agents):
+def api(
+    path: str,
+    output: Optional[str] = None,
+    verbose: bool = False,
+    use_agents: bool = False,
+) -> int:
     """Extract API documentation from a codebase.
 
     PATH: Path to the project directory to analyze
@@ -216,7 +235,7 @@ def api(path, output, verbose, use_agents):
 @click.argument("path", type=click.Path(exists=True))
 @click.option("--output", "-o", type=click.Path(), help="Output file path")
 @click.option("--verbose", "-v", is_flag=True, help="Show verbose output")
-def setup(path, output):
+def setup(path: str, output: Optional[str] = None) -> int:
     """Generate setup instructions for a codebase.
 
     PATH: Path to the project directory to analyze

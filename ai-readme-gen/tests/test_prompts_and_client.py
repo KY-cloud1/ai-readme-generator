@@ -1,7 +1,6 @@
 """Tests for prompt templates and AI client error handling."""
 
 import pytest
-from pathlib import Path
 from unittest.mock import patch
 
 from cli.ai.prompts import (
