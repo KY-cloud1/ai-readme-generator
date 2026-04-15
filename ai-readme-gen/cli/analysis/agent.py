@@ -270,6 +270,14 @@ class TechnicalWriter(Agent):
     """Writes documentation and README content."""
 
     def run(self, context: Dict[str, Any]) -> AgentResult:
+        # Validate input context structure
+        if not isinstance(context, dict):
+            return AgentResult(
+                success=False,
+                output="Invalid context: expected dict",
+                metadata={"endpoints": []}
+            )
+
         metadata = context.get("metadata", {})
         analysis = context.get("analysis", {})
         file_dist = context.get("file_distribution", {})

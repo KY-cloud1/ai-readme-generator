@@ -5,7 +5,7 @@ problem_type: error_handling
 status: resolved
 date: 2026-04-14
 last_updated: 2026-04-14
-module: ai-readme-gen/cli/ai/client,ai-readme-gen/cli/analysis/agent,ai-readme-gen/cli/commands/generate
+module: ai-readme-gen/cli/ai,ai-readme-gen/cli/analysis,ai-readme-gen/cli/commands
 files:
   - ai-readme-gen/cli/ai/client.py
   - ai-readme-gen/cli/analysis/agent.py
@@ -58,6 +58,7 @@ except Exception:
 
 **Before:**
 ```python
+# In call_anthropic() and call_openai()
 except requests.exceptions.HTTPError as e:
     # Check for 401 authentication errors, but safely handle cases where response is None
     if e.response.status_code == 401:  # Potential AttributeError!

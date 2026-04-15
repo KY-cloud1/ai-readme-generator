@@ -551,6 +551,39 @@ class TestFullAnalysisPipeline:
         assert "tech_stack" in result.metadata, "Should have tech stack"
         assert "installation" in result.metadata, "Should have installation instructions"
 
+    def test_technical_writer_with_agentresult_analysis(self, test_project):
+        """Test that TechnicalWriter handles AgentResult objects in context['analysis']."""
+        from cli.analysis.agent import AgentResult
+
+        codebase_info = scan_codebase(str(test_project))
+        metadata = extract_project_metadata(str(test_project))
+        agent_result = AgentResult(
+            success=True,
+            metadata={
+                "entry_points": ["main.py", "app.py"],
+                "dependencies": ["flask", "requests"],
+                "file_distribution": {"python": 10, "javascript": 5},
+            }
+        )
+        context = {
+            "codebase": codebase_info,
+            "metadata": metadata,
+            "file_distribution": codebase_info["languages"],
+            "analysis": agent_result,  # Pass AgentResult instead of dict
+        }
+
+        agent = TechnicalWriter()
+        result = agent.run(context)
+
+        assert result.success is True, "TechnicalWriter should handle AgentResult successfully"
+        assert "description" in result.metadata, "Should have description"
+        assert "features" in result.metadata, "Should have features"
+        assert "tech_stack" in result.metadata, "Should have tech stack"
+        assert "installation" in result.metadata, "Should have installation instructions"
+        # Verify that features were extracted from AgentResult metadata
+        features = result.metadata.get("features", [])
+        assert len(features) > 0, "Should have extracted features from AgentResult"
+
     def test_pipeline_api_extractor(self, fastapi_project):
         """Test that the APIExtractor agent runs correctly."""
         codebase_info = scan_codebase(str(fastapi_project))
@@ -683,6 +716,34 @@ class TestFullAnalysisPipeline:
             mock_call.side_effect = AuthenticationError("No API key configured")
             diagram = generate_diagram(codebase_info)
 
+        assert "```" in diagram, "Diagram should have code block markers"
+        assert "Basic ASCII Diagram" in diagram, "Diagram should have ASCII marker"
+
+    def test_generate_diagram_with_bare_exception(self, test_project):
+        """Test that generate_diagram handles bare exceptions and logs to stderr."""
+        import io
+        from contextlib import redirect_stderr
+
+        codebase_info = scan_codebase(str(test_project))
+
+        # Mock call_ai_model to raise a generic exception (not AuthenticationError)
+        with patch('cli.commands.generate.call_ai_model') as mock_call:
+            mock_call.side_effect = Exception("Generic error occurred")
+
+            # Capture stderr output
+            stderr_capture = io.StringIO()
+            with redirect_stderr(stderr_capture):
+                diagram = generate_diagram(codebase_info)
+
+            stderr_output = stderr_capture.getvalue()
+
+        # Verify that error message was logged to stderr
+        assert "Warning" in stderr_output, "Should log warning message"
+        assert "Failed to generate AI diagram" in stderr_output, "Should contain failure message"
+        assert "Exception" in stderr_output, "Should contain exception type"
+        assert "Generic error occurred" in stderr_output, "Should contain error message"
+
+        # Verify that basic diagram was returned as fallback
         assert "```" in diagram, "Diagram should have code block markers"
         assert "Basic ASCII Diagram" in diagram, "Diagram should have ASCII marker"
 

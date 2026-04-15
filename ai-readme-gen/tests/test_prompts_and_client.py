@@ -393,6 +393,27 @@ class TestAIModelCalls:
         # Check that messages were passed as first positional argument
         assert mock_call.call_args[0][0] == [{"role": "user", "content": "test"}]
 
+    def test_call_openai_httperror_with_none_response(self):
+        """Test that HTTPError with None response is handled safely."""
+        import requests
+        from unittest.mock import patch
+
+        # Create an HTTPError with None response (edge case that could occur)
+        http_error = requests.exceptions.HTTPError("Request failed")
+        http_error.response = None  # Simulate None response
+
+        # Mock get_api_key to return a fake key so the API call proceeds
+        with patch('cli.ai.client.get_api_key', return_value='fake-key'):
+            with patch('requests.post') as mock_post:
+                mock_post.side_effect = http_error
+
+                # Should raise APIError, not crash with AttributeError
+                with pytest.raises(APIError) as exc_info:
+                    call_ai_model([{"role": "user", "content": "test"}], AIProvider.OPENAI, max_tokens=100)
+
+                assert "API request failed" in str(exc_info.value)
+                mock_post.assert_called_once()
+
     def test_call_local_model(self):
         """Test local model call raises error."""
         from cli.ai.client import call_local_model

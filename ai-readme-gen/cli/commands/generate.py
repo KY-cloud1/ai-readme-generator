@@ -58,7 +58,7 @@ def generate_readme(
 
         return "# Project Documentation\n\n" + str(result)
     except AuthenticationError:
-        # Generate a basic README when AI is not available
+        click.echo("Warning: Authentication failed. Generating basic README.", err=True)
         return generate_basic_readme(codebase_info, metadata)
 
 
@@ -133,6 +133,8 @@ def generate_diagram(
         ]
 
         response = call_ai_model(messages, AIProvider.ANTHROPIC)
+        if response is None:
+            return generate_basic_diagram(codebase_info, agent_context)
         # Handle long response extraction
         choices = response.get("choices", [{}])
         message = choices[0].get("message", {}) if choices else {}
@@ -237,13 +239,12 @@ def generate_api_docs(
         ]
 
         response = call_ai_model(messages, AIProvider.ANTHROPIC)
-        # Handle long response extraction
-        choices = response.get("choices", [{}])
         message = choices[0].get("message", {}) if choices else {}
         content = message.get("content", "") if message else ""
 
         return content
     except AuthenticationError:
+        click.echo("Warning: Authentication failed. Generating basic API docs.", err=True)
         return generate_basic_api_docs(endpoints, agent_context)
 
 
