@@ -74,12 +74,20 @@ def get_users():
 def create_user():
     return {"status": "created"}
 """)
-    # Add pyproject.toml for metadata extraction
+    # Add pyproject.toml for metadata extraction with scripts and entry_points
     (tmp_path / "pyproject.toml").write_text("""
 [project]
 name = "test-project"
 description = "A simple test project for documentation generation"
 version = "1.0.0"
+authors = [{ name = "Test Author", email = "test@example.com" }]
+
+[project.scripts]
+mycli = "test_project.cli:main"
+mycli2 = "test_project.cli2:main"
+
+[project.entry-points."mygroup"]
+myapp = "test_project.app:main"
 """)
     return tmp_path
 
@@ -437,13 +445,33 @@ class TestPyprojectTomlMetadataExtraction:
 
     def test_extract_project_metadata_pyproject_toml_with_scripts(self, test_project):
         """Test metadata extraction with scripts section."""
-        # The test_project fixture doesn't have scripts, so we skip this test
-        pass
+        metadata = extract_project_metadata(str(test_project))
+
+        # Verify scripts are extracted
+        assert metadata.get("scripts") is not None, "Scripts should be extracted"
+        assert isinstance(metadata["scripts"], dict), "Scripts should be a dictionary"
+        assert "mycli" in metadata["scripts"], "Should extract mycli script"
+        assert "mycli2" in metadata["scripts"], "Should extract mycli2 script"
+        assert metadata["scripts"]["mycli"] == "test_project.cli:main", \
+            "Should extract correct script value for mycli"
+        assert metadata["scripts"]["mycli2"] == "test_project.cli2:main", \
+            "Should extract correct script value for mycli2"
 
     def test_extract_project_metadata_pyproject_toml_with_entry_points(self, test_project):
         """Test metadata extraction with entry_points section."""
-        # The test_project fixture doesn't have entry_points, so we skip this test
-        pass
+        metadata = extract_project_metadata(str(test_project))
+
+        # Verify entry_points are extracted
+        assert metadata.get("entry_points") is not None, "Entry points should be extracted"
+        assert isinstance(metadata["entry_points"], dict), "Entry points should be a dictionary"
+        assert "mygroup" in metadata["entry_points"], "Should extract mygroup entry point"
+        # entry_points structure: {group_name: {entry_name: "module:attr"}}
+        assert isinstance(metadata["entry_points"]["mygroup"], dict), \
+            "Entry point values should be dictionaries"
+        assert "myapp" in metadata["entry_points"]["mygroup"], \
+            "Should extract myapp entry point within mygroup"
+        assert metadata["entry_points"]["mygroup"]["myapp"] == "test_project.app:main", \
+            "Should extract correct entry point value for myapp"
 
     def test_extract_project_metadata_pyproject_toml_missing_name(self, test_project):
         """Test metadata extraction when name is missing."""
@@ -464,6 +492,87 @@ description = "A project without name"
             assert metadata.get("name") is None, "Name should be None when not specified"
             assert metadata.get("description") == "A project without name", \
                 "Description should be extracted"
+        finally:
+            shutil.rmtree(tmpdir)
+
+    def test_extract_project_metadata_pyproject_toml_malformed(self, test_project):
+        """Test metadata extraction handles malformed pyproject.toml gracefully.
+
+        This test verifies that the extract_project_metadata function
+        can handle malformed TOML files without raising exceptions.
+        """
+        tmpdir = tempfile.mkdtemp()
+        try:
+            tmpdir = Path(tmpdir)
+
+            # Create malformed pyproject.toml with syntax errors
+            (tmpdir / "pyproject.toml").write_text("""
+[project
+name = "malformed-project"
+version = "1.0.0"
+# Missing closing bracket and other syntax errors
+""")
+
+            # Should not raise any exceptions
+            metadata = extract_project_metadata(str(tmpdir))
+
+            # Should return empty metadata for malformed file
+            assert metadata.get("name") is None, "Should return None for malformed file"
+            assert metadata.get("version") is None, "Should return None for malformed file"
+            assert metadata.get("description") is None, "Should return None for malformed file"
+        finally:
+            shutil.rmtree(tmpdir)
+
+    def test_extract_project_metadata_pyproject_toml_truncated(self, test_project):
+        """Test metadata extraction handles truncated pyproject.toml gracefully.
+
+        This test verifies that the extract_project_metadata function
+        can handle truncated TOML files without raising exceptions.
+        """
+        tmpdir = tempfile.mkdtemp()
+        try:
+            tmpdir = Path(tmpdir)
+
+            # Create truncated pyproject.toml
+            (tmpdir / "pyproject.toml").write_text("""
+[project]
+name = "truncated-project"
+version = "1.0.0"
+authors = [
+""")
+
+            # Should not raise any exceptions
+            metadata = extract_project_metadata(str(tmpdir))
+
+            # Should return empty metadata for truncated file
+            assert metadata.get("name") is None, "Should return None for truncated file"
+            assert metadata.get("version") is None, "Should return None for truncated file"
+            assert metadata.get("description") is None, "Should return None for truncated file"
+        finally:
+            shutil.rmtree(tmpdir)
+
+    def test_extract_project_metadata_pyproject_toml_invalid_unicode(self, test_project):
+        """Test metadata extraction handles invalid UTF-8 in pyproject.toml gracefully.
+
+        This test verifies that the extract_project_metadata function
+        can handle files with invalid UTF-8 encoding without raising exceptions.
+        """
+        tmpdir = tempfile.mkdtemp()
+        try:
+            tmpdir = Path(tmpdir)
+
+            # Create pyproject.toml with invalid UTF-8 bytes
+            invalid_utf8 = b"[project]\nname = \"invalid\"\nversion = \"1.0.0\"\n"
+            invalid_utf8 += b"\xff\xfe"  # Invalid UTF-8 sequence
+            (tmpdir / "pyproject.toml").write_bytes(invalid_utf8)
+
+            # Should not raise any exceptions
+            metadata = extract_project_metadata(str(tmpdir))
+
+            # Should return empty metadata for invalid UTF-8 file
+            assert metadata.get("name") is None, "Should return None for invalid UTF-8 file"
+            assert metadata.get("version") is None, "Should return None for invalid UTF-8 file"
+            assert metadata.get("description") is None, "Should return None for invalid UTF-8 file"
         finally:
             shutil.rmtree(tmpdir)
 
