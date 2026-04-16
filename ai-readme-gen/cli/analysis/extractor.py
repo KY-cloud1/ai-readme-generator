@@ -16,7 +16,7 @@ def extract_project_metadata(path: str) -> Dict[str, Any]:
         path: Path to the project root
 
     Returns:
-        Dictionary containing project metadata
+        Dictionary containing project metadata including scripts and entry_points
     """
     path_obj = Path(path)
     metadata = {
@@ -27,6 +27,8 @@ def extract_project_metadata(path: str) -> Dict[str, Any]:
         "keywords": [],
         "license": None,
         "repository": None,
+        "scripts": None,
+        "entry_points": None,
     }
 
     # Check pyproject.toml
@@ -60,7 +62,7 @@ def extract_from_pyproject(path: str) -> Dict[str, Any]:
     try:
         with open(base_path, 'rb') as f:
             data = tomllib.load(f)
-    except (IOError, OSError, UnicodeDecodeError):
+    except (IOError, OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
         return {}
 
     project = data.get("project", {})
@@ -88,6 +90,9 @@ def extract_from_pyproject(path: str) -> Dict[str, Any]:
         "license": project.get("license", {}).get("text") if isinstance(project.get("license"), dict) else None,  # noqa: E501
         "repository": repository,
         "classifiers": project.get("classifiers", []) if isinstance(project.get("classifiers"), list) else [],  # noqa: E501
+        "scripts": project.get("scripts", {}) if isinstance(project.get("scripts"), dict) else None,
+        # Handle both "entry-points" (PEP 621) and "entry_points" (hyphenated)
+        "entry_points": project.get("entry_points") or project.get("entry-points", {}) if isinstance(project.get("entry_points") or project.get("entry-points"), dict) else None,  # noqa: E501
     }
 
     # Extract URLs
