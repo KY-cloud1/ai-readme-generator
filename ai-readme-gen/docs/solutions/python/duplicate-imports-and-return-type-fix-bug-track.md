@@ -1,15 +1,12 @@
 ---
 title: Remove duplicate imports and fix _propagate_to_context return type handling
-module: ai-readme-gen/cli, ai-readme-gen/tests
-tags:
-  - duplicate-imports
-  - unused-imports
-  - return-type
-  - logic-error
-  - python
-  - cli
-  - agent-pipeline
-  - defensive-programming
+type: bug
+problem_type: logic_error
+status: resolved
+date: 2026-04-15
+last_updated: 2026-04-15
+module: ai-readme-gen/cli,ai-readme-gen/tests
+tags: [duplicate-imports, unused-imports, return-type, logic-error, python, cli, agent-pipeline, defensive-programming]
 category: python
 ---
 
