@@ -22,6 +22,10 @@ def parse_file(file_path: str) -> Dict[str, Any]:
     if ext == '.py':
         return parse_python_file(str(path))
     elif ext in {'.js', '.jsx', '.ts', '.tsx'}:
+        if ext in {'.ts', '.tsx'}:
+            result = parse_javascript_file(str(path))
+            result["language"] = "typescript"
+            return result
         return parse_javascript_file(str(path))
     else:
         return {

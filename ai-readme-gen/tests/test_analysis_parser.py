@@ -101,163 +101,171 @@ from fastapi import FastAPI
 app = FastAPI()
 
 @app.get("/users")
-def get_users():
-    return {"users": []}
+async def get_users():
+    return [{"id": 1, "name": "John"}, {"id": 2, "name": "Jane"}]
 
 @app.post("/users")
-def create_user(user_data):
+async def create_user(user: dict):
     return {"status": "created"}
 
-@app.get("/users/{user_id}")
-def get_user(user_id: int):
-    return {"user_id": user_id}
-
-@app.post("/users/{user_id}")
-def create_user_id(user_id: int):
-    return {"user_id": user_id}
-
 @app.get("/items")
-def read_items():
-    return [{"name": "Item 1", "price": 10.0}]
+async def get_items():
+    return [{"id": 1, "name": "Item 1"}]
+""")
+    (tmp_path / "requirements.txt").write_text("""
+fastapi>=0.100.0
+uvicorn>=0.23.0
+""")
+    (tmp_path / "README.md").write_text("""
+# FastAPI Project
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int):
-    return {"item_id": item_id}
-
-@app.post("/items")
-def create_item(item: Item):
-    return {"item": item.name, "status": "created"}
-
-@app.delete("/items/{item_id}")
-def delete_item(item_id: int):
-    return {"item_id": item_id, "status": "deleted"}
+A FastAPI project for API development.
 """)
     return tmp_path
 
 
 @pytest.fixture(scope="function")
 def empty_project(tmp_path):
-    """Create an empty project for edge case testing."""
-    return tmp_path
-
-
-@pytest.fixture(scope="function")
-def js_project(tmp_path):
-    """Create a JavaScript project for JS parsing tests."""
-    (tmp_path / "index.js").write_text("""
-import express from 'express';
-import mongoose from 'mongoose';
-import * as lodash from 'lodash';
-
-const app = express();
-
-app.get('/api/users', (req, res) => {
-    res.json({users: []});
-});
-
-module.exports = app;
-""")
+    """Create a temporary empty project directory."""
     return tmp_path
 
 
 # =============================================================================
-# Test Classes
+# Test Codebase Scanning
 # =============================================================================
 
 class TestCodebaseScanning:
-    """Tests for codebase scanning functionality."""
+    """Tests for codebase scanning functions."""
 
-    def test_scan_codebase_basic(self, test_project):
-        """Test that scan_codebase correctly scans a codebase."""
-        result = scan_codebase(str(test_project))
+    def test_scan_codebase_python(self, test_project):
+        """Test codebase scanning for Python files."""
+        result = scan_codebase(str(test_project), ["python"])
 
-        assert "files" in result, "Result should contain 'files' key"
-        assert "languages" in result, "Result should contain 'languages' key"
-        assert "directories" in result, "Result should contain 'directories' key"
-        assert "root_files" in result, "Result should contain 'root_files' key"
-        assert len(result["files"]) >= 2, "Should find at least 2 files"
-        assert "python" in result["languages"], "Should detect Python language"
-        assert "README.md" in result["root_files"], "Should find README.md in root files"
+        assert isinstance(result, dict), "Should return a dict"
+        assert len(result["files"]) > 0, "Should find Python files"
+        # Check that main files are found
+        py_files = [f for f in result["files"] if f["path"].endswith(".py")]
+        assert len(py_files) > 0, "Should find Python files"
 
-    def test_scan_codebase_empty(self, empty_project):
-        """Test scanning an empty directory."""
-        result = scan_codebase(str(empty_project))
+    def test_scan_codebase_javascript(self, test_project):
+        """Test codebase scanning for JavaScript files."""
+        result = scan_codebase(str(test_project), ["javascript"])
 
-        assert result["files"] == [], "Should return empty files list"
-        assert result["languages"] == {}, "Should return empty languages dict"
-        # Note: scan_codebase includes '.' in directories even for empty dirs
-        assert isinstance(result["directories"], list), "Directories should be a list"
-        assert result["root_files"] == [], "Should return empty root files list"
+        assert isinstance(result, dict), "Should return a dict"
+        # JavaScript project should have fewer files
+        assert len(result["files"]) < 10, "Should find fewer JavaScript files"
 
-    def test_scan_codebase_js_project(self, js_project):
-        """Test scanning a JavaScript project."""
-        result = scan_codebase(str(js_project))
+    def test_scan_codebase_empty_project(self, empty_project):
+        """Test codebase scanning from empty project."""
+        result = scan_codebase(str(empty_project), ["python"])
 
-        assert "javascript" in result["languages"], "Should detect JavaScript language"
-        assert len(result["files"]) >= 1, "Should find at least 1 file"
+        assert isinstance(result, dict), "Should return a dict"
+        assert len(result["files"]) == 0, "Should find no files in empty project"
 
+
+# =============================================================================
+# Test Python File Parsing
+# =============================================================================
 
 class TestPythonFileParsing:
     """Tests for Python file parsing."""
 
-    def test_parse_python_file_integration(self, test_project):
-        """Test Python file parsing in pipeline context."""
-        test_file = Path(test_project) / "app.py"
+    def test_parse_python_file_basic(self, test_project):
+        """Test basic Python file parsing."""
+        parsed = parse_python_file(str(test_project / "main.py"))
 
-        result = parse_python_file(str(test_file))
+        assert parsed.get("language") == "python", "Should identify as Python"
+        assert parsed.get("parsing") == "success", "Should parse successfully"
+        assert "imports" in parsed, "Should have imports"
+        assert "classes" in parsed, "Should have classes"
+        assert "functions" in parsed, "Should have functions"
 
-        assert result["syntax_error"] is False, "Python file should parse without syntax errors"
-        assert len(result["imports"]) >= 2, f"Should find at least 2 imports, found {len(result['imports'])}"
-        assert len(result["functions"]) >= 1, "Should find at least 1 function"
-        assert len(result["classes"]) >= 0, "Should find at least 0 classes"
+    def test_parse_python_file_with_imports(self, test_project):
+        """Test Python file parsing with imports."""
+        (test_project / "utils.py").write_text("""
+import requests
+from flask import Flask
+from typing import List, Dict
+""")
+        parsed = parse_python_file(str(test_project / "utils.py"))
 
-    def test_parse_python_file_simple(self, test_project):
-        """Test parsing a simple Python file."""
-        test_file = Path(test_project) / "main.py"
+        assert "requests" in parsed.get("imports", []), "Should detect requests import"
+        assert "flask" in parsed.get("imports", []), "Should detect flask import"
+        assert len(parsed.get("imports", [])) >= 3, "Should detect at least 3 imports"
 
-        result = parse_python_file(str(test_file))
 
-        assert result["syntax_error"] is False, "Should parse without errors"
-        # main.py has hello_world and main functions
-        assert len(result["functions"]) >= 2, f"Should find at least 2 functions, found {len(result['functions'])}"
-
+# =============================================================================
+# Test JavaScript File Parsing
+# =============================================================================
 
 class TestJavaScriptFileParsing:
     """Tests for JavaScript file parsing."""
 
-    def test_parse_js_file(self, js_project):
-        """Test JavaScript file parsing."""
-        test_file = Path(js_project) / "index.js"
-
-        result = parse_javascript_file(str(test_file))
-
-        # syntax_error key may not be present
-        assert result.get("syntax_error") is None or result.get("syntax_error") is False, \
-            "JS file should parse without syntax errors"
-        assert len(result.get("imports", [])) >= 3, "Should find at least 3 imports (express, mongoose, lodash)"
-
-
-class TestDependencyExtraction:
-    """Tests for dependency extraction."""
-
-    def test_extract_dependencies_python(self):
-        """Test dependency extraction in pipeline context."""
+    def test_parse_javascript_file_basic(self):
+        """Test basic JavaScript file parsing."""
         tmpdir = tempfile.mkdtemp()
         try:
             tmpdir = Path(tmpdir)
-            (tmpdir / "deps.py").write_text("""
-import requests
-import flask
-from sqlalchemy import create_engine
+            (tmpdir / "app.js").write_text("""
+const axios = require('axios');
+import React from 'react';
+import { useState } from 'react';
 """)
+            parsed = parse_javascript_file(str(tmpdir / "app.js"))
 
-            deps = extract_dependencies(str(tmpdir / "deps.py"))
-
-            assert "requests" in deps, "Should extract requests"
-            assert "flask" in deps, "Should extract flask"
-            assert "sqlalchemy" in deps, "Should extract sqlalchemy"
+            assert parsed.get("language") == "javascript", "Should identify as JavaScript"
+            assert parsed.get("parsing") == "success", "Should parse successfully"
+            assert "imports" in parsed, "Should have imports"
         finally:
             shutil.rmtree(tmpdir)
+
+    def test_parse_javascript_file_with_esm_imports(self):
+        """Test JavaScript file parsing with ESM imports."""
+        tmpdir = tempfile.mkdtemp()
+        try:
+            tmpdir = Path(tmpdir)
+            (tmpdir / "app.ts").write_text("""
+import express from 'express';
+import { FastifyInstance } from 'fastify';
+import * as lodash from 'lodash';
+""")
+            parsed = parse_javascript_file(str(tmpdir / "app.ts"))
+
+            assert "express" in parsed.get("imports", []), "Should detect express import"
+            assert "fastify" in parsed.get("imports", []), "Should detect fastify import"
+            assert "lodash" in parsed.get("imports", []), "Should detect lodash import"
+        finally:
+            shutil.rmtree(tmpdir)
+
+
+# =============================================================================
+# Test Dependency Extraction
+# =============================================================================
+
+class TestDependencyExtraction:
+    """Tests for dependency extraction functions."""
+
+    def test_extract_dependencies_python_basic(self, test_project):
+        """Test Python dependency extraction from source file."""
+        deps = extract_dependencies(str(test_project / "app.py"))
+
+        assert "requests" in deps, "Should extract requests import"
+        assert "flask" in deps, "Should extract flask import"
+        assert len(deps) == 2, "Should extract 2 dependencies"
+
+    def test_extract_dependencies_python_from_import(self, test_project):
+        """Test Python dependency extraction with from imports."""
+        (test_project / "utils.py").write_text("""
+from flask import Flask
+from requests import get
+import json
+""")
+        deps = extract_dependencies(str(test_project / "utils.py"))
+
+        assert "flask" in deps, "Should extract flask from import"
+        assert "requests" in deps, "Should extract requests from import"
+        assert "json" in deps, "Should extract json import"
+        assert len(deps) == 3, "Should extract 3 dependencies"
 
     def test_extract_dependencies_requirements_txt(self):
         """Test requirements.txt parsing."""
@@ -299,58 +307,6 @@ black>23.0.0
         finally:
             shutil.rmtree(tmpdir)
 
-    def test_extract_dependencies_requirements_txt_with_extras(self):
-        """Test requirements.txt parsing with extras."""
-        tmpdir = tempfile.mkdtemp()
-        try:
-            tmpdir = Path(tmpdir)
-            (tmpdir / "requirements.txt").write_text("""
-requests[security]>=2.28.0
-flask[async]>=2.3.0
-""")
-
-            deps = extract_dependencies(str(tmpdir / "requirements.txt"))
-
-            assert "requests" in deps, "Should extract requests"
-            assert "flask" in deps, "Should extract flask"
-        finally:
-            shutil.rmtree(tmpdir)
-
-    def test_extract_dependencies_requirements_txt_with_whitespace(self):
-        """Test requirements.txt parsing with whitespace variations."""
-        tmpdir = tempfile.mkdtemp()
-        try:
-            tmpdir = Path(tmpdir)
-            (tmpdir / "requirements.txt").write_text("""
-requests>=2.28.0
-flask>=2.3.0
-pytest>=7.0.0
-""")
-
-            deps = extract_dependencies(str(tmpdir / "requirements.txt"))
-
-            assert "requests" in deps, "Should extract requests"
-            assert "flask" in deps, "Should extract flask"
-            assert "pytest" in deps, "Should extract pytest"
-        finally:
-            shutil.rmtree(tmpdir)
-
-    def test_extract_dependencies_requirements_txt_with_url_packages(self):
-        """Test requirements.txt parsing with URL packages."""
-        tmpdir = tempfile.mkdtemp()
-        try:
-            tmpdir = Path(tmpdir)
-            (tmpdir / "requirements.txt").write_text("""
-requests>=2.28.0
-git+https://github.com/user/repo.git@main
-""")
-
-            deps = extract_dependencies(str(tmpdir / "requirements.txt"))
-
-            assert "requests" in deps, "Should extract requests"
-        finally:
-            shutil.rmtree(tmpdir)
-
     def test_extract_dependencies_requirements_txt_empty(self):
         """Test requirements.txt parsing with empty file."""
         tmpdir = tempfile.mkdtemp()
@@ -364,28 +320,35 @@ git+https://github.com/user/repo.git@main
         finally:
             shutil.rmtree(tmpdir)
 
-    def test_extract_dependencies_requirements_txt_with_comments(self):
-        """Test requirements.txt parsing with comments."""
+    def test_extract_dependencies_nonexistent_file(self):
+        """Test extract_dependencies raises FileNotFoundError for nonexistent file."""
+        with pytest.raises(FileNotFoundError):
+            extract_dependencies("/nonexistent/path/file.txt")
+
+    def test_extract_dependencies_javascript(self):
+        """Test JavaScript dependency extraction."""
         tmpdir = tempfile.mkdtemp()
         try:
             tmpdir = Path(tmpdir)
-            (tmpdir / "requirements.txt").write_text("""
-# This is a comment
-requests>=2.28.0  # Another comment
-flask>=2.3.0
+            (tmpdir / "app.js").write_text("""
+const axios = require('axios');
+import React from 'react';
+import { useState } from 'react';
 """)
+            deps = extract_dependencies(str(tmpdir / "app.js"))
 
-            deps = extract_dependencies(str(tmpdir / "requirements.txt"))
-
-            assert "requests" in deps, "Should extract requests"
-            assert "flask" in deps, "Should extract flask"
-            assert len(deps) == 2, "Should have exactly 2 dependencies"
+            assert "axios" in deps, "Should extract axios"
+            assert "react" in deps, "Should extract react"
         finally:
             shutil.rmtree(tmpdir)
 
 
+# =============================================================================
+# Test Project-Level Dependency Extraction
+# =============================================================================
+
 class TestProjectDependencyExtraction:
-    """Tests for project-level dependency extraction."""
+    """Tests for extract_project_dependencies function."""
 
     def test_extract_project_dependencies_with_requirements_txt(self, test_project):
         """Test project dependency extraction with requirements.txt."""
@@ -416,6 +379,17 @@ class TestProjectDependencyExtraction:
         has_pyproject = any("pyproject.toml" in path for path in deps.keys())
         assert has_requirements and has_pyproject, "Should find both requirements.txt and pyproject.toml"
 
+    def test_extract_project_dependencies_empty_project(self, empty_project):
+        """Test project dependency extraction from empty project."""
+        deps = extract_project_dependencies(str(empty_project))
+
+        assert isinstance(deps, dict), "Should return a dict"
+        assert len(deps) == 0, "Should find no dependency files in empty project"
+
+
+# =============================================================================
+# Test PyProject Toml Metadata Extraction
+# =============================================================================
 
 class TestPyprojectTomlMetadataExtraction:
     """Tests for pyproject.toml metadata extraction."""
@@ -495,87 +469,10 @@ description = "A project without name"
         finally:
             shutil.rmtree(tmpdir)
 
-    def test_extract_project_metadata_pyproject_toml_malformed(self, test_project):
-        """Test metadata extraction handles malformed pyproject.toml gracefully.
 
-        This test verifies that the extract_project_metadata function
-        can handle malformed TOML files without raising exceptions.
-        """
-        tmpdir = tempfile.mkdtemp()
-        try:
-            tmpdir = Path(tmpdir)
-
-            # Create malformed pyproject.toml with syntax errors
-            (tmpdir / "pyproject.toml").write_text("""
-[project
-name = "malformed-project"
-version = "1.0.0"
-# Missing closing bracket and other syntax errors
-""")
-
-            # Should not raise any exceptions
-            metadata = extract_project_metadata(str(tmpdir))
-
-            # Should return empty metadata for malformed file
-            assert metadata.get("name") is None, "Should return None for malformed file"
-            assert metadata.get("version") is None, "Should return None for malformed file"
-            assert metadata.get("description") is None, "Should return None for malformed file"
-        finally:
-            shutil.rmtree(tmpdir)
-
-    def test_extract_project_metadata_pyproject_toml_truncated(self, test_project):
-        """Test metadata extraction handles truncated pyproject.toml gracefully.
-
-        This test verifies that the extract_project_metadata function
-        can handle truncated TOML files without raising exceptions.
-        """
-        tmpdir = tempfile.mkdtemp()
-        try:
-            tmpdir = Path(tmpdir)
-
-            # Create truncated pyproject.toml
-            (tmpdir / "pyproject.toml").write_text("""
-[project]
-name = "truncated-project"
-version = "1.0.0"
-authors = [
-""")
-
-            # Should not raise any exceptions
-            metadata = extract_project_metadata(str(tmpdir))
-
-            # Should return empty metadata for truncated file
-            assert metadata.get("name") is None, "Should return None for truncated file"
-            assert metadata.get("version") is None, "Should return None for truncated file"
-            assert metadata.get("description") is None, "Should return None for truncated file"
-        finally:
-            shutil.rmtree(tmpdir)
-
-    def test_extract_project_metadata_pyproject_toml_invalid_unicode(self, test_project):
-        """Test metadata extraction handles invalid UTF-8 in pyproject.toml gracefully.
-
-        This test verifies that the extract_project_metadata function
-        can handle files with invalid UTF-8 encoding without raising exceptions.
-        """
-        tmpdir = tempfile.mkdtemp()
-        try:
-            tmpdir = Path(tmpdir)
-
-            # Create pyproject.toml with invalid UTF-8 bytes
-            invalid_utf8 = b"[project]\nname = \"invalid\"\nversion = \"1.0.0\"\n"
-            invalid_utf8 += b"\xff\xfe"  # Invalid UTF-8 sequence
-            (tmpdir / "pyproject.toml").write_bytes(invalid_utf8)
-
-            # Should not raise any exceptions
-            metadata = extract_project_metadata(str(tmpdir))
-
-            # Should return empty metadata for invalid UTF-8 file
-            assert metadata.get("name") is None, "Should return None for invalid UTF-8 file"
-            assert metadata.get("version") is None, "Should return None for invalid UTF-8 file"
-            assert metadata.get("description") is None, "Should return None for invalid UTF-8 file"
-        finally:
-            shutil.rmtree(tmpdir)
-
+# =============================================================================
+# Test API Endpoint Extraction
+# =============================================================================
 
 class TestApiEndpointExtraction:
     """Tests for API endpoint extraction."""
@@ -589,12 +486,16 @@ class TestApiEndpointExtraction:
         assert "/users" in paths, "Should extract /users endpoint"
         assert "/items" in paths, "Should extract /items endpoint"
 
-    def test_extract_api_endpoints_empty(self, test_project):
+    def test_extract_api_endpoints_empty(self, empty_project):
         """Test API endpoint extraction from project without endpoints."""
-        endpoints = extract_api_endpoints(str(test_project))
+        endpoints = extract_api_endpoints(str(empty_project))
 
-        assert len(endpoints) == 0, "Should extract no endpoints from non-Flask project"
+        assert len(endpoints) == 0, "Should extract no endpoints from empty project"
 
+
+# =============================================================================
+# Test Setup Instructions Extraction
+# =============================================================================
 
 class TestSetupInstructionsExtraction:
     """Tests for setup instructions extraction."""

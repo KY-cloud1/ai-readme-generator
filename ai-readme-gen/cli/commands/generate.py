@@ -76,8 +76,16 @@ def generate_basic_readme(codebase_info: Dict[str, Any], metadata: Dict[str, Any
     Returns:
         Basic README content with project structure and file listing
     """
+    # Capitalize project name for display (replace hyphens with spaces)
+    project_name = metadata.get('name')
+    if project_name:
+        project_name = project_name.replace('-', ' ').title()
+    else:
+        project_name = 'Project'
     lines = [
-        f"# {metadata.get('name', 'Project') or 'Project'}",
+        f"# {project_name}",
+        "",
+        "## Description",
         "",
         metadata.get("description", "No description available.") or "No description available.",
         "",

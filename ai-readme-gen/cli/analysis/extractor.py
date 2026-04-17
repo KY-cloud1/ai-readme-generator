@@ -19,32 +19,38 @@ def extract_project_metadata(path: str) -> Dict[str, Any]:
         Dictionary containing project metadata including scripts and entry_points
     """
     path_obj = Path(path)
+    if not path_obj.exists():
+        raise FileNotFoundError(f"Path does not exist: {path_obj}")
+
     metadata = {
         "name": None,
         "description": None,
         "version": None,
         "author": None,
+        "authors": [],
         "keywords": [],
         "license": None,
         "repository": None,
         "scripts": None,
         "entry_points": None,
+        "dependencies": [],
+        "classifiers": [],
     }
 
-    # Check pyproject.toml
-    pyproject = path_obj / "pyproject.toml"
-    if pyproject.exists():
-        metadata.update(extract_from_pyproject(str(pyproject)))
+    # Check README.md for project name/description (lowest precedence)
+    readme = path_obj / "README.md"
+    if readme.exists():
+        metadata.update(extract_from_readme(str(readme)))
 
     # Check package.json
     package_json = path_obj / "package.json"
     if package_json.exists():
         metadata.update(extract_from_package_json(str(package_json)))
 
-    # Check README.md for project name/description
-    readme = path_obj / "README.md"
-    if readme.exists():
-        metadata.update(extract_from_readme(str(readme)))
+    # Check pyproject.toml (highest precedence)
+    pyproject = path_obj / "pyproject.toml"
+    if pyproject.exists():
+        metadata.update(extract_from_pyproject(str(pyproject)))
 
     return metadata
 
@@ -93,6 +99,8 @@ def extract_from_pyproject(path: str) -> Dict[str, Any]:
         "scripts": project.get("scripts", {}) if isinstance(project.get("scripts"), dict) else None,
         # Handle both "entry-points" (PEP 621) and "entry_points" (hyphenated)
         "entry_points": project.get("entry_points") or project.get("entry-points", {}) if isinstance(project.get("entry_points") or project.get("entry-points"), dict) else None,  # noqa: E501
+        "dependencies": project.get("dependencies", []) if isinstance(project.get("dependencies"), list) else [],
+        "authors": project.get("authors", []),
     }
 
     # Extract URLs
@@ -166,15 +174,29 @@ def extract_from_readme(path: str) -> Dict[str, Any]:
 
     # Extract project name from title or first heading
     title_match = re.search(r'#\s+(.+)', content)
-    if title_match:
-        return {"name": title_match.group(1).strip(), "description": None}
+    name = title_match.group(1).strip() if title_match else None
 
-    # Extract description from text
-    desc_match = re.search(r'(?:Description|About)\s*\n\s*(.+)', content)
-    if desc_match:
-        return {"name": None, "description": desc_match.group(1).strip()}
+    # Extract description: first non-empty paragraph after the title
+    description = None
+    lines = content.strip().split('\n')
+    found_title = False
+    for line in lines:
+        stripped = line.strip()
+        if not found_title:
+            if stripped.startswith('#'):
+                found_title = True
+            continue
+        if stripped and not stripped.startswith('#'):
+            description = stripped
+            break
 
-    return {}
+    result: Dict[str, Any] = {}
+    if name:
+        result["name"] = name
+    if description:
+        result["description"] = description
+
+    return result
 
 
 def extract_api_endpoints(path: str) -> List[Dict[str, Any]]:
@@ -197,6 +219,11 @@ def extract_api_endpoints(path: str) -> List[Dict[str, Any]]:
         (r'@app\.delete\s*\(\s*[\'"](/[\w/_-]+[\'"])\s*\)', 'fastapi-delete'),
         # With additional parameters (tags, summary, etc.)
         (r'@app\.(get|post|put|delete)\s*\(\s*(?:[\w,=\s]+\s*)?[\'"](/[\w/_-]+[\'"])\s*\)', 'fastapi-generic'),  # noqa: E501
+    ]
+
+    # Look for Flask routes (@app.route)
+    flask_patterns = [
+        (r'@app\.route\s*\(\s*[\'"](/[\w/_-]*)[\'"]\s*(?:,\s*methods\s*=\s*\[([^\]]*)\])?\s*\)', 'flask'),  # noqa: E501
     ]
 
     # Look for Express/Fastify routes (with various patterns)
@@ -241,6 +268,29 @@ def extract_api_endpoints(path: str) -> List[Dict[str, Any]]:
                     except re.error:
                         continue
 
+                # Check for Flask
+                for pattern, method in flask_patterns:
+                    try:
+                        matches = re.finditer(pattern, content)
+                        for match in matches:
+                            path_part = match.group(1)
+                            methods_str = match.group(2)
+                            if methods_str:
+                                # Parse methods list: "['GET', 'POST']" -> ['GET', 'POST']
+                                http_methods = [m.strip().strip("'\"") for m in methods_str.split(',')]
+                            else:
+                                # Default to GET
+                                http_methods = ['GET']
+                            for http_method in http_methods:
+                                endpoints.append({
+                                    "method": http_method.upper(),
+                                    "path": path_part,
+                                    "source": str(file_path),
+                                    "type": "flask",
+                                })
+                    except re.error:
+                        continue
+
                 # Check for Express/Fastify
                 for pattern, method in express_patterns:
                     try:
@@ -269,12 +319,14 @@ def extract_setup_instructions(path: str) -> Dict[str, Any]:
     Returns:
         Dictionary containing setup instructions
     """
-    instructions: Dict[str, List[str]] = {
+    instructions: Dict[str, Any] = {
         "installation": [],
         "environment": [],
         "configuration": [],
         "dependencies": [],
     }
+
+    dep_lines: List[str] = []
 
     # Check for requirements.txt
     req_file = Path(path) / "requirements.txt"
@@ -283,16 +335,32 @@ def extract_setup_instructions(path: str) -> Dict[str, Any]:
             for line in f:
                 line = line.strip()
                 if line and not line.startswith('#'):
-                    instructions["dependencies"].append(line)
+                    dep_lines.append(line)
 
     # Check for package.json
     pkg_file = Path(path) / "package.json"
     if pkg_file.exists():
         with open(pkg_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            instructions["dependencies"].append("npm install")
+            dep_lines.append("npm install")
             if "scripts" in data:
                 instructions["configuration"].append("npm run <script>")
+
+    # Check for pyproject.toml dependencies
+    pyproject_file = Path(path) / "pyproject.toml"
+    if pyproject_file.exists():
+        try:
+            with open(pyproject_file, 'rb') as f:
+                pdata = tomllib.load(f)
+            deps = pdata.get("project", {}).get("dependencies", [])
+            if isinstance(deps, list):
+                for dep in deps:
+                    # Extract package name from "package>=version" format
+                    name_match = re.match(r'([a-zA-Z0-9_-]+)', dep)
+                    if name_match:
+                        dep_lines.append(name_match.group(1))
+        except Exception:
+            pass
 
     # Check for Dockerfile
     dockerfile = Path(path) / "Dockerfile"
@@ -308,5 +376,8 @@ def extract_setup_instructions(path: str) -> Dict[str, Any]:
                 instructions["installation"].append("pip install -r requirements.txt")
             if "npm install" in content:
                 instructions["installation"].append("npm install")
+
+    # Return dependencies as a list
+    instructions["dependencies"] = dep_lines if dep_lines else []
 
     return instructions

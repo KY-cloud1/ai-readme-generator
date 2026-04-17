@@ -3,8 +3,9 @@
 import ast
 import os
 import re
+import tomllib
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 SUPPORTED_EXTENSIONS = {
@@ -27,19 +28,20 @@ SUPPORTED_EXTENSIONS = {
 }
 
 
-def scan_codebase(path: str) -> Dict[str, Any]:
+def scan_codebase(path: str, languages: list[str] | None = None) -> Dict[str, Any]:
     """
     Scan a codebase and return structured information.
 
     Args:
         path: Path to the codebase root directory
+        languages: Optional list of language names to filter by (e.g. ["python"])
 
     Returns:
         Dictionary containing codebase information
     """
     path_obj = Path(path).resolve()
 
-    if not path_obj.is_dir():
+    if not path_obj.exists():
         raise ValueError(f"Path does not exist: {path_obj}")
 
     codebase_info = {
@@ -49,6 +51,37 @@ def scan_codebase(path: str) -> Dict[str, Any]:
         "directories": [],
         "root_files": [],
     }
+
+    # Build extension-to-language lookup for filtering
+    ext_to_lang = {ext: lang for ext, lang in SUPPORTED_EXTENSIONS.items()}
+    lang_to_ext = {}
+    for ext, lang in SUPPORTED_EXTENSIONS.items():
+        lang_to_ext.setdefault(lang, set()).add(ext)
+
+    # Detect Python version from pyproject.toml or requirements.txt
+    detected_versions: Dict[str, str] = {}
+    pyproject = path_obj / "pyproject.toml"
+    if pyproject.exists():
+        try:
+            with open(pyproject, 'rb') as f:
+                pdata = tomllib.load(f)
+            # Check tool.poetry.python
+            python_req = pdata.get("tool", {}).get("poetry", {}).get("python")
+            if python_req:
+                detected_versions["python"] = python_req
+            # Check project.requires-python
+            requires_python = pdata.get("project", {}).get("requires-python")
+            if requires_python:
+                detected_versions["python"] = requires_python
+        except Exception:
+            pass
+    # Check setup.cfg
+    setup_cfg = path_obj / "setup.cfg"
+    if "python" not in detected_versions and setup_cfg.exists():
+        content = setup_cfg.read_text(errors='ignore')
+        version_match = re.search(r'python_requires\s*=\s*(.+)', content)
+        if version_match:
+            detected_versions["python"] = version_match.group(1).strip()
 
     for root, dirs, files in os.walk(path):
         # Skip hidden directories and common non-code directories
@@ -62,8 +95,13 @@ def scan_codebase(path: str) -> Dict[str, Any]:
             file_path = dir_path / file
             ext = file_path.suffix.lower()
 
-            if ext in SUPPORTED_EXTENSIONS:
-                language = SUPPORTED_EXTENSIONS[ext]
+            if ext in ext_to_lang:
+                language = ext_to_lang[ext]
+
+                # Filter by languages if specified
+                if languages is not None and language not in languages:
+                    continue
+
                 relative_path = str(file_path.relative_to(path))
 
                 file_info = {
@@ -76,10 +114,14 @@ def scan_codebase(path: str) -> Dict[str, Any]:
 
                 # Track language distribution
                 if language not in codebase_info["languages"]:
-                    codebase_info["languages"][language] = {
+                    lang_info: Dict[str, Any] = {
                         "count": 0,
                         "files": [],
                     }
+                    # Add detected version if available
+                    if language in detected_versions:
+                        lang_info["version"] = detected_versions[language]
+                    codebase_info["languages"][language] = lang_info
                 codebase_info["languages"][language]["count"] += 1
                 codebase_info["languages"][language]["files"].append(relative_path)
 
@@ -105,6 +147,8 @@ def parse_python_file(file_path: str) -> Dict[str, Any]:
         except SyntaxError:
             return {
                 "path": file_path,
+                "language": "python",
+                "parsing": "failed",
                 "syntax_error": True,
                 "imports": [],
                 "classes": [],
@@ -118,9 +162,11 @@ def parse_python_file(file_path: str) -> Dict[str, Any]:
     for node in ast.walk(tree):
         # Collect imports
         if isinstance(node, ast.Import):
-            imports.append([alias.name for alias in node.names])
+            for alias in node.names:
+                imports.append(alias.name)
         elif isinstance(node, ast.ImportFrom):
-            imports.append([alias.name for alias in node.names])
+            if node.module:
+                imports.append(node.module)
 
         # Collect classes
         if isinstance(node, ast.ClassDef):
@@ -147,6 +193,8 @@ def parse_python_file(file_path: str) -> Dict[str, Any]:
 
     return {
         "path": file_path,
+        "language": "python",
+        "parsing": "success",
         "syntax_error": False,
         "imports": imports,
         "classes": classes,
@@ -176,12 +224,10 @@ def parse_javascript_file(file_path: str) -> Dict[str, Any]:
 
     # Find imports (ESM and CommonJS)
     esm_imports = re.findall(r'import\s+.*?from\s+[\'"]([^\'"]+)[\'"]', content)
-    for imp in esm_imports:
-        imports.append(f"from '{imp}'")
+    imports.extend(esm_imports)
 
     commonjs_imports = re.findall(r'require\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)', content)
-    for imp in commonjs_imports:
-        imports.append(f"require('{imp}')")
+    imports.extend(commonjs_imports)
 
     # Find exports
     _ = re.findall(r'export\s+(?:default\s+)?(?:function|class|const|let|var|async\s+function)\s+(\w+)', content)  # noqa: E501
@@ -208,6 +254,8 @@ def parse_javascript_file(file_path: str) -> Dict[str, Any]:
 
     return {
         "path": file_path,
+        "language": "javascript",
+        "parsing": "success",
         "imports": imports,
         "exports": exports,
         "classes": classes,
