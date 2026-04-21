@@ -1,0 +1,28 @@
+{
+	"name": "Python 3",
+	"image": "mcr.microsoft.com/devcontainers/python:3-3.14-trixie",
+
+	"containerEnv": {
+		"TZ": "America/Los_Angeles"
+	},
+
+	"features": {
+		"ghcr.io/devcontainers/features/git:1": {},
+		"ghcr.io/devcontainers/features/node:1": {}
+	},
+
+	"postCreateCommand": "npm install -g @anthropic-ai/claude-code",
+
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"ms-python.debugpy",
+				"ms-toolsai.python-environment-manager"
+			]
+		}
+	},
+
+	"remoteUser": "vscode"
+}
