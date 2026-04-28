@@ -1,3 +1,14 @@
+# Notes about Development
+This project was created using Claude Code with the Compound Engineering plugin by Every and powered locally via Qwen3.5-9b-4bit (hosted with llama.cpp using llama-server and a GGUF from unSloth).
+
+The development highlights structured LLM development practices that focus on proper coding standards, file organization, and conventional commit practices. It also utilized Tailscale, tmux, and Termius to allow on-the-go interaction while Claude Code was running with the local LLM.
+
+The LLM was run on a 2022 16-inch MacBook Pro (M2 Pro, 32GB RAM, 1TB storage). The MacBook was consistently running at 100% GPU utilization, with constant ~27GB of RAM in use and several gigabytes of SSD swap active. This highlights that more powerful hardware is required for serious local LLM development on anything more than very small context and repository sizes.
+
+Reasoning time was not an issue after Qwen3.5-9B was adjusted using Unsloth’s recommended sampling parameters for coding tasks. Average token generation speed for small prompts was approximately ~23 tokens/sec (slow, but usable). However, Metal backend consistenty failed as the context length approached ~100,000 tokens for a single prompt, requiring for llama-server to be restart and for the current Claude Code prompt to be cleared.
+
+It's likely that any cloud-hosted frontier LLM model could have completed this project in a fraction of the time, effort, and prompting spent on this one. However, I hope this project will serve as a useful reference to me showing how far local LLMs will grow and  how far I'll be able to push my current hardware within the comming years. As of Spring 2026, I can confidently say that using Qwen3.5-9b-4bit for this project pushed my Macbook to its limit. I hope that even 2-3 years from now I can look back with far better local LLM models and hardware and reminisce to when I was only getting started. 
+
 # AI README Generator
 
 AI-powered documentation generator that creates high-quality README files, architecture diagrams, and API documentation from codebases.
